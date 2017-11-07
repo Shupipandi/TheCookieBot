@@ -1,0 +1,10 @@
+[main]
+token=<token_id value>
+youtubeapikey=<youtubeapi_id value>
+
+[spotify]
+spotifyclientid=<client_id value>
+spotifysecret=<secret_id value>
+spotifyuser=<spotify suername>
+spotifyplaylist=<spotify playlist id>
+spotifyplaylistlink=<spotify playlist url>
