@@ -45,7 +45,7 @@ def ini_to_dict(path):
     :return: an OrderedDict of that path ini data
     """
     global dataCookie
-    json_file = open('data_cookie.json', 'r')
+    json_file = open('/home/pi/Desktop/github/TheCookieBot/data_cookie.json', 'r')
     dataCookie = json.load(json_file)
     config = ConfigParser()
     config.read(path)
@@ -219,7 +219,7 @@ def echo(bot, update):
     global canTalk
     global firstMsg
 
-    if update.message.chat_id == settings["main"]["groupid"]:
+    if str(update.message.chat_id) == str(settings["main"]["groupid"]):
         for i in range(len(update.message.entities)):
             if update.message.entities[i].type == 'url' and ( 'youtu.be' in update.message.text.lower() or 'youtube.com' in update.message.text.lower()):
                 try:
@@ -298,9 +298,9 @@ def echo(bot, update):
             #messages
             elif "cookie dame la lista" in update.message.text.lower():
                 gimmeTheSpotifyPlaylistLink(bot, update)
-            elif "cookie dame el json" in update.message.text.lower():
-                bot.send_document(chat_id=chat_id, document=open('/home/pi/Desktop/cookieBotData/files/data_cookie.json', 'rb'))
-                bot.send_document(chat_id=chat_id, document=open('/home/pi/Desktop/github/theCookieBot/config.ini', 'rb'))
+            elif "cookie dame la config" in update.message.text.lower():
+                bot.send_document(chat_id=update.message.chat_id, document=open('/home/pi/Desktop/github/TheCookieBot/data_cookie.json', 'rb'))
+                bot.send_document(chat_id=update.message.chat_id, document=open('/home/pi/Desktop/github/TheCookieBot/config.ini', 'rb'))
             elif re.search(r'\bdios\b', update.message.text.lower()):
                 randomValue = getRandomByValue(4)
                 if randomValue < 1 :
