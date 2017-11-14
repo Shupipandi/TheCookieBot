@@ -78,7 +78,7 @@ def getRandomByValue(value):
 
 def randomResponse(update, bot):
     global dataCookie
-    randomValue = getRandomByValue(100)
+    randomValue = getRandomByValue(200)
     if randomValue == 11:
         array = update.message.text.split()
         randomIndex = getRandomByValue(3)
@@ -275,13 +275,13 @@ def echo(bot, update):
                     sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/pffff.mp4')
             elif "gif del fantasma" in update.message.text.lower():
                 sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/fantasma.mp4')
-            elif "bukkake" in update.message.text.lower():
+            elif "bukkake" in update.message.text.lower() or "galletitas" in update.message.text.lower():
                 sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/perro.mp4')
             elif re.search(r'\bcabra\b', update.message.text.lower()):
                 randomValue = getRandomByValue(4)
                 if randomValue <= 1:
                     sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/cabra_scream.mp4')
-            elif "qué?" == unidecode(update.message.text.lower()) or "que?" == update.message.text.lower():
+            elif unidecode(u'qué?') == unidecode(update.message.text.lower()) or "que?" == update.message.text.lower():
                 sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/cabra.mp4')
             elif re.search(r'\breviento\b', update.message.text.lower()) or re.search(r'\brebiento\b', update.message.text.lower()):
                 sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/acho_reviento.mp4')
