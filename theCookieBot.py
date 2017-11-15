@@ -130,8 +130,8 @@ def startJobs(bot, update):
     now = datetime.now() - timedelta(days = 1)
     now = now.replace(hour=19, minute=00)
     job_daily = j.run_daily(callback_andalucia, now.time(), days=(0,1,2,3,4,5,6), context=update.message.chat_id)
-    now = now.replace(hour=2, minute=00)
-    job_daily = j.run_daily(callback_bye, now.time(), days=(0,1,2,3,4,5,6), context=update.message.chat_id)
+    #now = now.replace(hour=2, minute=00)
+    #job_daily = j.run_daily(callback_bye, now.time(), days=(0,1,2,3,4,5,6), context=update.message.chat_id)
 
 def isNowJob(bot, job):
     global maxValueForJob
@@ -283,10 +283,14 @@ def echo(bot, update):
                     sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/cabra_scream.mp4')
             elif unidecode(u'qué?') == unidecode(update.message.text.lower()) or "que?" == update.message.text.lower():
                 sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/cabra.mp4')
+            elif unidecode(u'aió') == unidecode(update.message.text.lower()) or re.search(r'\baio\b', update.message.text.lower()):
+                sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/bye.mp4')
             elif re.search(r'\breviento\b', update.message.text.lower()) or re.search(r'\brebiento\b', update.message.text.lower()):
                 sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/acho_reviento.mp4')
             elif re.search(r'\bchoca\b', update.message.text.lower()):
                 sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/choca.mp4')
+            elif re.search(r'\bbro\b', update.message.text.lower()):
+                sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/cat_bro.mp4')
             elif "templo" in update.message.text.lower() or "gimnasio" in update.message.text.lower():
                 randomValue = getRandomByValue(4)
                 if randomValue <= 1:
