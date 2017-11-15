@@ -215,11 +215,40 @@ def replaceYouTubeVideoName(videoTitle):
     videoTitle = videoTitle.lower().replace("videoclip", "")
     return videoTitle
 
+def censorYoutubeVideo(videoTitle):
+    json_file = open(os.path.join(os.path.dirname(__file__), "youtubeCensor.json"), 'r')
+    youtubeCensorData = json.load(json_file)
+
+    for item in youtubeCensorData:
+        if item in videoTitle:
+            return True
+    return None
+
+def connectToSpotifyAndCheckAPI(update, videoTitle, videoTags, video):
+    client_credentials_manager = SpotifyClientCredentials(client_id=settings["spotify"]["spotifyclientid"], client_secret=settings["spotify"]["spotifysecret"])
+    sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    sp.trace = False
+    results = callSpotifyApi(videoTitle, videoTags, video, sp, update)
+
+    if results == None or (results['tracks']['total'] != None and results['tracks']['total'] == 0 ):
+        saveDataSong(update, None)
+    else:
+        addToSpotifyPlaylist(results, update)
+
 def echo(bot, update):
     global canTalk
     global firstMsg
 
     if str(update.message.chat_id) == str(settings["main"]["groupid"]):
+        if update.message.text != None and "cookie para" == update.message.text.lower():
+            stop(bot, update)
+        elif update.message.text != None and "cookie sigue" == update.message.text.lower():
+            restart(bot, update)
+
+        if firstMsg:
+            startJobs(bot, update)
+            firstMsg=None
+
         for i in range(len(update.message.entities)):
             if update.message.entities[i].type == 'url' and ( 'youtu.be' in update.message.text.lower() or 'youtube.com' in update.message.text.lower()):
                 try:
@@ -236,32 +265,19 @@ def echo(bot, update):
                     video = youtube.get_video_info(videoid)
                     videoTitle = video['snippet']['title'].lower()
                     videoTitle = replaceYouTubeVideoName(videoTitle)
-                    videoTags = ""
-                    tagsIndex = 0
-                    videoTags = gimmeTags(video, videoTags, 3)
-                    if videoTitle != None and videoTags != None:
-                        client_credentials_manager = SpotifyClientCredentials(client_id=settings["spotify"]["spotifyclientid"], client_secret=settings["spotify"]["spotifysecret"])
-                        sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
-                        sp.trace = False
-                        results = callSpotifyApi(videoTitle, videoTags, video, sp, update)
 
-                        if results['tracks']['total'] != None and results['tracks']['total'] == 0:
-                            saveDataSong(update)
-                        else:
-                            addToSpotifyPlaylist(results, update)
+                    if censorYoutubeVideo(videoTitle):
+                        update.message.reply_text('...', reply_to_message_id=update.message.message_id)
                     else:
-                        saveDataSong(update)
+                        videoTags = ""
+                        tagsIndex = 0
+                        videoTags = gimmeTags(video, videoTags, 3)
+                        if videoTitle != None and videoTags != None:
+                            connectToSpotifyAndCheckAPI(update, videoTitle, videoTags, video)
+                        else:
+                            saveDataSong(update, None)
                 except:
-                    saveDataSong(update)
-
-        if update.message.text != None and "cookie para" == update.message.text.lower():
-            stop(bot, update)
-        elif update.message.text != None and "cookie sigue" == update.message.text.lower():
-            restart(bot, update)
-
-        if firstMsg:
-            startJobs(bot, update)
-            firstMsg=None
+                    saveDataSong(update, None)
 
         if canTalk:
             #voice
@@ -277,6 +293,13 @@ def echo(bot, update):
                 sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/fantasma.mp4')
             elif "bukkake" in update.message.text.lower() or "galletitas" in update.message.text.lower():
                 sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/perro.mp4')
+            elif "cookie añade" in update.message.text.lower():
+                videoTitle = update.message.text.lower().replace("cookie añade ", "")
+
+                if censorYoutubeVideo(videoTitle):
+                    update.message.reply_text('No. :)', reply_to_message_id=update.message.message_id)
+                else:
+                    connectToSpotifyAndCheckAPI(update, videoTitle, [], None)
             elif re.search(r'\bcabra\b', update.message.text.lower()):
                 randomValue = getRandomByValue(4)
                 if randomValue <= 1:
