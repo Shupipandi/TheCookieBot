@@ -200,7 +200,6 @@ def addToSpotifyPlaylist(results, update):
     token = util.prompt_for_user_token(settings["spotify"]["spotifyuser"],scope,client_id=settings["spotify"]["spotifyclientid"],client_secret=settings["spotify"]["spotifysecret"],redirect_uri='http://localhost:8000')
     sp = spotipy.Spotify(auth=token)
     results = sp.user_playlist_add_tracks(settings["spotify"]["spotifyuser"], settings["spotify"]["spotifyplaylist"], idsToAdd)
-    update.message.reply_text("Añadidas " + str(len(idsToAdd)) + " canciones, gracias! :D", reply_to_message_id=update.message.message_id)
 
 def gimmeTheSpotifyPlaylistLink(bot, update):
     update.message.reply_text('ahí te va! ' + settings["spotify"]["spotifyplaylistlink"])
