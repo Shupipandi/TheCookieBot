@@ -61,6 +61,7 @@ And save the chat_id value in config.ini with groupid name.
 Register the app in next links and save the api keys, client_id and client_secret values in config.ini:
 
 https://developer.spotify.com/my-applications
+
 https://console.developers.google.com/apis/credentials
 
 If you want to censor a word or a song, just add it in youtubeCensor.json array object.
