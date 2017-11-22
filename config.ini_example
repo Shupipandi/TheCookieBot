@@ -1,6 +1,7 @@
 [main]
 token=<token_id value>
 youtubeapikey=<youtubeapi_id value>
+groupid=<group_ip value>
 
 [spotify]
 spotifyclientid=<client_id value>
