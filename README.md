@@ -14,6 +14,9 @@ pip3 install unidecode
 ```
 pip3 install spotipy
 ```
+```
+pip3 install python-dateutil --user
+```
 ## Start
 
 Use "python3" or your configurated command for version 3
@@ -32,6 +35,9 @@ pip install unidecode
 ```
 ```
 pip install spotipy
+```
+```
+pip install python-dateutil --user
 ```
 ## Start
 
@@ -65,6 +71,36 @@ https://developer.spotify.com/my-applications
 https://console.developers.google.com/apis/credentials
 
 If you want to censor a word or a song, just add it in youtubeCensor.json array object.
+
+
+## Required files for correct functionaly
+youtubeCensor.json -> ```["string", "string"]```
+
+dateConfig.json -> 
+```
+{
+  "name": "mañana",
+  "value": "1",
+  "type": "day"
+}, {
+  "name": "pasado",
+  "value": "2",
+  "type": "day"
+}]
+```
+
+userNames.json -> 
+```
+[{
+	"name": "keyword",
+	"value": "telegramId"
+}]
+```
+
+## Special Thanks
+
+Spotipy is from -> https://github.com/plamere/spotipy 
+
 
 ## Extraball
 ### Send messages like a ninja
