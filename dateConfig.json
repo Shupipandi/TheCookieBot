@@ -1,0 +1,21 @@
+[{
+  "name": "mañana",
+  "value": "1",
+  "type": "day"
+}, {
+  "name": "pasado",
+  "value": "2",
+  "type": "day"
+}, {
+  "name": "pasadomañana",
+  "value": "2",
+  "type": "day"
+}, {
+  "name": "luego",
+  "value": "2",
+  "type": "hour"
+}, {
+  "name": "después",
+  "value": "1",
+  "type": "hour"
+}]
