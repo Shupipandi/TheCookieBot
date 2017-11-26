@@ -29,11 +29,14 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
+dataPath = os.path.join(os.path.dirname(__file__)) + '/data'
 
-random4GodMsg = ['dime', 'basta', 'déjame', 'ahora no', 'ZzZzzzZzz', '¿qué te pasa?']
-mimimimiStickerPath = ['/home/pi/Desktop/cookieBotData/stickers/mimimi.webp', '/home/pi/Desktop/cookieBotData/stickers/mimimi1.webp', '/home/pi/Desktop/cookieBotData/stickers/mimimi2.webp']
+random4GodMsg = ['dime', 'basta', 'déjame',
+                 'ahora no', 'ZzZzzzZzz', '¿qué te pasa?']
+mimimimiStickerPath = ['/stickers/mimimi.webp',
+                       '/stickers/mimimi1.webp', '/stickers/mimimi2.webp']
 m3AudiosPath = []
-huehuehuePath = ['/home/pi/Desktop/cookieBotData/gifs/huehuehue.mp4', '/home/pi/Desktop/cookieBotData/gifs/huehuehue1.mp4']
+huehuehuePath = ['/gifs/huehuehue.mp4', '/gifs/huehuehue1.mp4']
 canTalk = True
 firstMsg = True
 maxValueForJob = 5
@@ -43,23 +46,26 @@ dataCookie = {}
 weekdayConstant = ['lunes', 'martes', 'miércoles',
                    'jueves', 'viernes', 'sábado', 'domingo']
 
+
 def ini_to_dict(path):
     """ Read an ini path in to a dict
     :param path: Path to file
     :return: an OrderedDict of that path ini data
     """
     global dataCookie
-    json_file = open('/home/pi/Desktop/github/TheCookieBot/data_cookie.json', 'r')
+    json_file = open(
+        os.path.join(os.path.dirname(__file__)) + '/data_cookie.json', 'r')
     dataCookie = json.load(json_file)
     config = ConfigParser()
     config.read(path)
-    return_value=OrderedDict()
+    return_value = OrderedDict()
     for section in reversed(config.sections()):
-        return_value[section]=OrderedDict()
+        return_value[section] = OrderedDict()
         section_tuples = config.items(section)
         for itemTurple in reversed(section_tuples):
             return_value[section][itemTurple[0]] = itemTurple[1]
     return return_value
+
 
 # Create the EventHandler and pass it your bot's token.
 config = ConfigParser()
@@ -70,11 +76,16 @@ j = updater.job_queue
 
 # Define a few command handlers. These usually take the two arguments bot and
 # update. Error handlers also receive the raised TelegramError object in error.
+
+
 def start(bot, update):
-    update.message.reply_text('Yeheeeeeeee!', reply_to_message_id=update.message.message_id)
+    update.message.reply_text(
+        'Yeheeeeeeee!', reply_to_message_id=update.message.message_id)
+
 
 def help(bot, update):
     update.message.reply_text(':)')
+
 
 def checkHourToRemember(msg, timeObject):
     # Check if hour
@@ -99,6 +110,7 @@ def checkHourToRemember(msg, timeObject):
 
     return msg, timeObject
 
+
 def checkRememberDate(now, timeObject, isWeekday):
     if isWeekday == None:
         if "type" in timeObject and timeObject["type"] == "day":
@@ -117,6 +129,7 @@ def replaceStr(msg, str):
     if str in msg:
         msg = msg.replace(str + " ", "", 1)
     return msg
+
 
 def checkDayDifference(diffDayCount, now, timeObject):
     if diffDayCount == 0 and "hor" in timeObject and now.hour <= int(timeObject["hour"]):
@@ -213,25 +226,26 @@ def rememberJobs(bot, update, msg):
         timeObject = {}
         msg, timeObject = checkHourToRemember(msg, timeObject)
         now = checkRememberDate(now, timeObject, True)
-        diffDayCount = checkDayDifference(diffDayCount, datetime.now(), timeObject)
+        diffDayCount = checkDayDifference(
+            diffDayCount, datetime.now(), timeObject)
         now = now + timedelta(days=diffDayCount)
 
     update.message.reply_text(
-        "Vale", reply_to_message_id = update.message.message_id)
-    now=now.replace(second = 0)
+        "Vale", reply_to_message_id=update.message.message_id)
+    now = now.replace(second=0)
     saveMessageToRemember(
         usernameToNotify, msg, now.isoformat())
-    j.run_once(callback_remember, now, context = update.message.chat_id)
+    j.run_once(callback_remember, now, context=update.message.chat_id)
 
 
 def saveMessageToRemember(username, msg, when):
-    data=[]
+    data = []
     try:
-        json_file=open('memories.json', 'r')
-        data=json.load(json_file)
+        json_file = open('memories.json', 'r')
+        data = json.load(json_file)
         data.append({'username': username, 'msg': msg, 'when': when})
     except IOError:
-        data=[{'username': username, 'msg': msg, 'when': when}]
+        data = [{'username': username, 'msg': msg, 'when': when}]
 
     with open('memories.json', 'w') as outfile:
         json.dump(data, outfile)
@@ -239,42 +253,43 @@ def saveMessageToRemember(username, msg, when):
 
 def loadMemories():
     try:
-        json_file=open('memories.json', 'r')
-        data=json.load(json_file)
+        json_file = open('memories.json', 'r')
+        data = json.load(json_file)
     except IOError:
-        data={}
-    data=json.dumps(
+        data = {}
+    data = json.dumps(
         {'data': data})
-    data=json.loads(data)
+    data = json.loads(data)
     return data["data"]
 
 
 def gimmeMyMemories():
-    data=loadMemories()
-    data=sorted(
+    data = loadMemories()
+    data = sorted(
         data,
-        key = lambda x: datetime.strptime(x['when'], '%Y-%m-%dT%H:%M:%S.%f'), reverse=True
+        key=lambda x: datetime.strptime(x['when'], '%Y-%m-%dT%H:%M:%S.%f'), reverse=True
     )
     # msg = data[0]
-    msg=data.pop()
+    msg = data.pop()
     with open('memories.json', 'w') as outfile:
         json.dump(data, outfile)
     return msg
 
 
 def callback_remember(bot, job):
-    msg=gimmeMyMemories()
-    bot.send_message(chat_id = job.context, text = "EH! " +
+    msg = gimmeMyMemories()
+    bot.send_message(chat_id=job.context, text="EH! " +
                      msg["username"] + " te recuerdo que " + msg["msg"])
 
+
 def checkTimeToRemember(msg):
-    data=[]
+    data = []
     try:
-        json_file=open('dateConfig.json', 'r')
-        data=json.load(json_file)
+        json_file = open('dateConfig.json', 'r')
+        data = json.load(json_file)
     except IOError:
         return None
-    index=0
+    index = 0
     while index < len(data):
         if data[index]["name"] in msg:
             return data[index]
@@ -285,6 +300,7 @@ def checkTimeToRemember(msg):
 def getRandomByValue(value):
     randomValue = randint(0, value)
     return randomValue
+
 
 def randomResponse(update, bot):
     global dataCookie
@@ -301,34 +317,44 @@ def randomResponse(update, bot):
             update.message.text = re.sub(r'[Vv]+', 'f', update.message.text)
         else:
             wasChanged = bool(re.search(r'[TtVvSsCc]+', update.message.text))
-            update.message.text = re.sub(r'[TtVvSsCc]+', 'f', update.message.text)
+            update.message.text = re.sub(
+                r'[TtVvSsCc]+', 'f', update.message.text)
         if wasChanged:
-            update.message.reply_text(update.message.text, reply_to_message_id=update.message.message_id)
+            update.message.reply_text(
+                update.message.text, reply_to_message_id=update.message.message_id)
     elif randomValue == 10:
         global messageOwner
         if messageOwner == 0:
-            messageOwner = '@'+update.message.from_user.username
+            messageOwner = '@' + update.message.from_user.username
             j.run_once(isNowJob, 10, context=update.message.chat_id)
     elif randomValue <= 9 and randomValue >= 3:
-        randomMsgIndex = getRandomByValue(len(dataCookie['randomMsg']) -1)
-        update.message.reply_text(dataCookie['randomMsg'][randomMsgIndex], reply_to_message_id=update.message.message_id)
+        randomMsgIndex = getRandomByValue(len(dataCookie['randomMsg']) - 1)
+        update.message.reply_text(
+            dataCookie['randomMsg'][randomMsgIndex], reply_to_message_id=update.message.message_id)
     elif randomValue < 2:
         update.message.text = unidecode(update.message.text)
         update.message.text = re.sub(r'[AEOUaeou]+', 'i', update.message.text)
-        update.message.reply_text(update.message.text, reply_to_message_id=update.message.message_id)
-        randomMsgIndex = getRandomByValue(len(mimimimiStickerPath) -1)
-        bot.send_sticker(chat_id=update.message.chat_id, sticker=open(mimimimiStickerPath[randomMsgIndex], 'rb'))
+        update.message.reply_text(
+            update.message.text, reply_to_message_id=update.message.message_id)
+        randomMsgIndex = getRandomByValue(len(mimimimiStickerPath) - 1)
+        bot.send_sticker(chat_id=update.message.chat_id, sticker=open(
+            dataPath + mimimimiStickerPath[randomMsgIndex], 'rb'))
 
 
 def sendGif(bot, update, pathGif):
-    bot.sendChatAction(chat_id=update.message.chat_id, action=telegram.ChatAction.UPLOAD_PHOTO)
-    bot.sendDocument(chat_id=update.message.chat_id, document=open(pathGif, 'rb'))
+    bot.sendChatAction(chat_id=update.message.chat_id,
+                       action=telegram.ChatAction.UPLOAD_PHOTO)
+    bot.sendDocument(chat_id=update.message.chat_id,
+                     document=open(pathGif, 'rb'))
+
 
 def sendVoice(bot, update, pathVoice):
     bot.send_voice(chat_id=update.message.chat_id, voice=open(pathVoice, 'rb'))
 
+
 def sendImg(bot, update, pathImg):
     bot.send_photo(chat_id=update.message.chat_id, photo=open(pathImg, 'rb'))
+
 
 def isAdmin(bot, update):
     if update.message.from_user.username != None and update.message.from_user.id in get_admin_ids(bot, update.message.chat_id):
@@ -336,10 +362,12 @@ def isAdmin(bot, update):
     else:
         return None
 
+
 def startJobs(bot, update):
-    now = datetime.now() - timedelta(days = 1)
+    now = datetime.now() - timedelta(days=1)
     now = now.replace(hour=19, minute=00)
-    job_daily = j.run_daily(callback_andalucia, now.time(), days=(0,1,2,3,4,5,6), context=update.message.chat_id)
+    job_daily = j.run_daily(callback_andalucia, now.time(), days=(
+        0, 1, 2, 3, 4, 5, 6), context=update.message.chat_id)
     data = loadMemories()
     for item in data:
         j.run_once(callback_remember, dateutil.parser.parse(
@@ -347,16 +375,18 @@ def startJobs(bot, update):
     #now = now.replace(hour=2, minute=00)
     #job_daily = j.run_daily(callback_bye, now.time(), days=(0,1,2,3,4,5,6), context=update.message.chat_id)
 
+
 def isNowJob(bot, job):
     global maxValueForJob
     global indexValueForJob
     global messageOwner
     global dataCookie
 
-    indexMsg = getRandomByValue(len(dataCookie['randomJobMsg']) -1)
-    bot.send_message(chat_id=job.context, text=dataCookie['randomJobMsg'][indexMsg] + " " + str(messageOwner))
+    indexMsg = getRandomByValue(len(dataCookie['randomJobMsg']) - 1)
+    bot.send_message(chat_id=job.context,
+                     text=dataCookie['randomJobMsg'][indexMsg] + " " + str(messageOwner))
 
-    indexValueForJob+=1
+    indexValueForJob += 1
 
     if indexValueForJob < maxValueForJob:
         j.run_once(isNowJob, 40, context=job.context)
@@ -364,13 +394,15 @@ def isNowJob(bot, job):
         messageOwner = None
         indexValueForJob = 0
 
+
 def gimmeTags(video, videoTags, maxTags):
     tagsIndex = 0
     if video['snippet'].get('tags') != None:
         while tagsIndex < len(video['snippet']['tags']) and tagsIndex < maxTags:
             videoTags += video['snippet']['tags'][tagsIndex] + " "
-            tagsIndex+=1
+            tagsIndex += 1
     return videoTags
+
 
 def saveDataSong(update):
     data = []
@@ -384,18 +416,20 @@ def saveDataSong(update):
     with open('data.txt', 'w') as outfile:
         json.dump(data, outfile)
 
-    update.message.reply_text("No conseguimos encontrar la canción en Spotify :( sorry :( la añadiremos a mano...", reply_to_message_id=update.message.message_id)
+    update.message.reply_text(
+        "No conseguimos encontrar la canción en Spotify :( sorry :( la añadiremos a mano...", reply_to_message_id=update.message.message_id)
+
 
 def callSpotifyApi(videoTitle, videoTags, video, sp, update):
     try:
         results = sp.search(q=videoTitle, limit=1)
-        if results['tracks']['total'] == 0 :
+        if results['tracks']['total'] == 0:
             results = sp.search(q=videoTags, limit=1)
-        if results['tracks']['total'] == 0 :
+        if results['tracks']['total'] == 0:
             videoTags = ""
             videoTags = gimmeTags(video, videoTags, 2)
             results = sp.search(q=videoTags, limit=1)
-        if results['tracks']['total'] == 0 :
+        if results['tracks']['total'] == 0:
             videoTags = ""
             videoTags = gimmeTags(video, videoTags, 1)
             results = sp.search(q=videoTags, limit=1)
@@ -403,20 +437,26 @@ def callSpotifyApi(videoTitle, videoTags, video, sp, update):
     except:
         saveDataSong(update)
 
+
 def addToSpotifyPlaylist(results, update):
-    resultTracksList=results['tracks']
-    idsToAdd=[]
+    resultTracksList = results['tracks']
+    idsToAdd = []
 
     for j in range(len(results['tracks']['items'])):
         idsToAdd.insert(0, results['tracks']['items'][j]['id'])
 
     scope = 'playlist-modify playlist-modify-public user-library-read playlist-modify-private'
-    token = util.prompt_for_user_token(settings["spotify"]["spotifyuser"],scope,client_id=settings["spotify"]["spotifyclientid"],client_secret=settings["spotify"]["spotifysecret"],redirect_uri='http://localhost:8000')
+    token = util.prompt_for_user_token(settings["spotify"]["spotifyuser"], scope, client_id=settings["spotify"]
+                                       ["spotifyclientid"], client_secret=settings["spotify"]["spotifysecret"], redirect_uri='http://localhost:8000')
     sp = spotipy.Spotify(auth=token)
-    results = sp.user_playlist_add_tracks(settings["spotify"]["spotifyuser"], settings["spotify"]["spotifyplaylist"], idsToAdd)
+    results = sp.user_playlist_add_tracks(
+        settings["spotify"]["spotifyuser"], settings["spotify"]["spotifyplaylist"], idsToAdd)
+
 
 def gimmeTheSpotifyPlaylistLink(bot, update):
-    update.message.reply_text('ahí te va! ' + settings["spotify"]["spotifyplaylistlink"])
+    update.message.reply_text(
+        'ahí te va! ' + settings["spotify"]["spotifyplaylistlink"])
+
 
 def replaceYouTubeVideoName(videoTitle):
     videoTitle = re.sub(r'\([\[a-zA-Z :\'0-9\]]+\)', '', videoTitle)
@@ -428,8 +468,10 @@ def replaceYouTubeVideoName(videoTitle):
     videoTitle = videoTitle.lower().replace("videoclip", "")
     return videoTitle
 
+
 def censorYoutubeVideo(videoTitle):
-    json_file = open(os.path.join(os.path.dirname(__file__), "youtubeCensor.json"), 'r')
+    json_file = open(os.path.join(os.path.dirname(
+        __file__), "youtubeCensor.json"), 'r')
     youtubeCensorData = json.load(json_file)
 
     for item in youtubeCensorData:
@@ -437,16 +479,19 @@ def censorYoutubeVideo(videoTitle):
             return True
     return None
 
+
 def connectToSpotifyAndCheckAPI(update, videoTitle, videoTags, video):
-    client_credentials_manager = SpotifyClientCredentials(client_id=settings["spotify"]["spotifyclientid"], client_secret=settings["spotify"]["spotifysecret"])
+    client_credentials_manager = SpotifyClientCredentials(
+        client_id=settings["spotify"]["spotifyclientid"], client_secret=settings["spotify"]["spotifysecret"])
     sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
     sp.trace = False
     results = callSpotifyApi(videoTitle, videoTags, video, sp, update)
 
-    if results == None or (results['tracks']['total'] != None and results['tracks']['total'] == 0 ):
+    if results == None or (results['tracks']['total'] != None and results['tracks']['total'] == 0):
         saveDataSong(update, None)
     else:
         addToSpotifyPlaylist(results, update)
+
 
 def echo(bot, update):
     global canTalk
@@ -460,7 +505,7 @@ def echo(bot, update):
 
         if firstMsg:
             startJobs(bot, update)
-            firstMsg=None
+            firstMsg = None
 
         if "cookie recuerda" in update.message.text.lower() or "cookie recuerdame" in update.message.text.lower() or "cookie recuérdame" in update.message.text.lower():
             msg = update.message.text.lower()
@@ -470,7 +515,7 @@ def echo(bot, update):
             rememberJobs(bot, update, msg)
 
         for i in range(len(update.message.entities)):
-            if update.message.entities[i].type == 'url' and ( 'youtu.be' in update.message.text.lower() or 'youtube.com' in update.message.text.lower()):
+            if update.message.entities[i].type == 'url' and ('youtu.be' in update.message.text.lower() or 'youtube.com' in update.message.text.lower()):
                 try:
                     videoid = ""
                     if 'youtu.be' not in update.message.text.lower():
@@ -481,95 +526,109 @@ def echo(bot, update):
                         videoid = update.message.text.split('youtu.be/')
                         videoid = videoid[1].split(' ')[0]
                         videoid = videoid.split('&')[0]
-                    youtube = YoutubeAPI({'key': settings["main"]["youtubeapikey"]})
+                    youtube = YoutubeAPI(
+                        {'key': settings["main"]["youtubeapikey"]})
                     video = youtube.get_video_info(videoid)
                     videoTitle = video['snippet']['title'].lower()
                     videoTitle = replaceYouTubeVideoName(videoTitle)
 
                     if censorYoutubeVideo(videoTitle):
-                        update.message.reply_text('...', reply_to_message_id=update.message.message_id)
+                        update.message.reply_text(
+                            '...', reply_to_message_id=update.message.message_id)
                     else:
                         videoTags = ""
                         tagsIndex = 0
                         videoTags = gimmeTags(video, videoTags, 3)
                         if videoTitle != None and videoTags != None:
-                            connectToSpotifyAndCheckAPI(update, videoTitle, videoTags, video)
+                            connectToSpotifyAndCheckAPI(
+                                update, videoTitle, videoTags, video)
                         else:
                             saveDataSong(update, None)
                 except:
                     saveDataSong(update, None)
 
         if canTalk:
-            #voice
+            # voice
            # if re.search(r'\<3\b', update.message.text.lower()):
            #     randomAudioIndex = getRandomByValue(len(m3AudiosPath) -1)
            #     sendVoice(bot, update, m3AudiosPath[randomAudioIndex])
-            #gif
+            # gif
             if re.search(r'\bpfff[f]+\b', update.message.text.lower()) or '...' == update.message.text:
                 randomValue = getRandomByValue(4)
                 if randomValue <= 1:
-                    sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/pffff.mp4')
+                    sendGif(bot, update, dataPath + '/gifs/pffff.mp4')
             elif "gif del fantasma" in update.message.text.lower():
-                sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/fantasma.mp4')
+                sendGif(bot, update, dataPath + '/gifs/fantasma.mp4')
             elif "bukkake" in update.message.text.lower() or "galletitas" in update.message.text.lower():
-                sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/perro.mp4')
+                sendGif(bot, update, dataPath + '/gifs/perro.mp4')
             elif "cookie añade" in update.message.text.lower():
                 videoTitle = update.message.text.lower().replace("cookie añade ", "")
 
                 if censorYoutubeVideo(videoTitle):
-                    update.message.reply_text('No. :)', reply_to_message_id=update.message.message_id)
+                    update.message.reply_text(
+                        'No. :)', reply_to_message_id=update.message.message_id)
                 else:
                     connectToSpotifyAndCheckAPI(update, videoTitle, [], None)
             elif re.search(r'\bcabra\b', update.message.text.lower()):
                 randomValue = getRandomByValue(4)
                 if randomValue <= 1:
-                    sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/cabra_scream.mp4')
+                    sendGif(bot, update, dataPath + '/gifs/cabra_scream.mp4')
             elif unidecode(u'qué?') == unidecode(update.message.text.lower()) or "que?" == update.message.text.lower():
-                sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/cabra.mp4')
+                sendGif(bot, update, dataPath + '/gifs/cabra.mp4')
             elif unidecode(u'aió') == unidecode(update.message.text.lower()) or re.search(r'\baio\b', update.message.text.lower()):
-                sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/bye.mp4')
+                sendGif(bot, update, dataPath + '/gifs/bye.mp4')
             elif re.search(r'\breviento\b', update.message.text.lower()) or re.search(r'\brebiento\b', update.message.text.lower()):
-                sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/acho_reviento.mp4')
+                sendGif(bot, update, dataPath + '/gifs/acho_reviento.mp4')
             elif re.search(r'\bchoca\b', update.message.text.lower()):
-                sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/choca.mp4')
+                sendGif(bot, update, dataPath + '/gifs/choca.mp4')
             elif re.search(r'\bbro\b', update.message.text.lower()):
-                sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/cat_bro.mp4')
+                sendGif(bot, update, dataPath + '/gifs/cat_bro.mp4')
             elif "templo" in update.message.text.lower() or "gimnasio" in update.message.text.lower():
                 randomValue = getRandomByValue(4)
                 if randomValue <= 1:
-                    sendGif(bot, update, '/home/pi/Desktop/cookieBotData/gifs/templo.mp4')
+                    sendGif(bot, update, dataPath + '/gifs/templo.mp4')
             elif re.search(r'\bhuehue[hue]+\b', update.message.text.lower()):
-                randomHuehuehueIndex = getRandomByValue(len(huehuehuePath) -1)
-                sendGif(bot, update, huehuehuePath[randomHuehuehueIndex])
+                randomHuehuehueIndex = getRandomByValue(len(huehuehuePath) - 1)
+                sendGif(bot, update, dataPath +
+                        huehuehuePath[randomHuehuehueIndex])
 
-            #messages
+            # messages
             elif "cookie dame la lista" in update.message.text.lower():
                 gimmeTheSpotifyPlaylistLink(bot, update)
             elif "cookie dame la config" in update.message.text.lower():
-                bot.send_document(chat_id=update.message.chat_id, document=open('/home/pi/Desktop/github/TheCookieBot/data_cookie.json', 'rb'))
-                bot.send_document(chat_id=update.message.chat_id, document=open('/home/pi/Desktop/github/TheCookieBot/config.ini', 'rb'))
+                bot.send_document(chat_id=update.message.chat_id, document=open(
+                    os.path.join(os.path.dirname(__file__)) + '/data_cookie.json', 'rb'))
+                bot.send_document(chat_id=update.message.chat_id, document=open(
+                    os.path.join(os.path.dirname(__file__)) + '/config.ini', 'rb'))
             elif re.search(r'\bdios\b', update.message.text.lower()):
                 randomValue = getRandomByValue(4)
-                if randomValue < 1 :
-                    indexMsg = getRandomByValue(len(random4GodMsg) -1)
-                    update.message.reply_text(random4GodMsg[indexMsg], reply_to_message_id=update.message.message_id)
+                if randomValue < 1:
+                    indexMsg = getRandomByValue(len(random4GodMsg) - 1)
+                    update.message.reply_text(
+                        random4GodMsg[indexMsg], reply_to_message_id=update.message.message_id)
 
             # imgs
 
-            #stickers
-            elif len(update.message.text) > 4: ##mimimimimimi
+            # stickers
+            elif len(update.message.text) > 4:  # mimimimimimi
                 randomResponse(update, bot)
+
 
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
 
+
 def callback_andalucia(bot, job):
     bot.send_message(chat_id=job.context, text="¡Buenoh díah, Andalucía! :D")
 
+
 def callback_bye(bot, job):
     bot.send_message(chat_id=job.context, text="AIÓ")
-    bot.sendChatAction(chat_id=job.context, action=telegram.ChatAction.UPLOAD_PHOTO)
-    bot.sendDocument(chat_id=job.context, document=open('/home/pi/Desktop/cookieBotData/gifs/bye.mp4', 'rb'))
+    bot.sendChatAction(chat_id=job.context,
+                       action=telegram.ChatAction.UPLOAD_PHOTO)
+    bot.sendDocument(chat_id=job.context, document=open(
+        dataPath + '/gifs/bye.mp4', 'rb'))
+
 
 def stop(bot, update):
     if isAdmin(bot, update):
@@ -578,6 +637,7 @@ def stop(bot, update):
     else:
         bot.send_message(chat_id=job.context, text="JA! No :)")
 
+
 def restart(bot, update):
     if isAdmin(bot, update):
         global canTalk
@@ -585,9 +645,11 @@ def restart(bot, update):
     else:
         bot.send_message(chat_id=job.context, text="JA! No :)")
 
+
 def get_admin_ids(bot, chat_id):
     """Returns a list of admin IDs for a given chat. Results are cached for 1 hour."""
     return [admin.user.id for admin in bot.get_chat_administrators(chat_id)]
+
 
 def main():
     # Get the dispatcher to register handlers

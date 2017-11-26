@@ -1,3 +1,4 @@
 *.ini
-*data_cookie.json
+data_cookie.json
 *.cache-aalex12
+userNames.json
