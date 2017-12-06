@@ -22,7 +22,6 @@ import spotipy.util as util
 from youtubeApi import YoutubeAPI
 from operator import itemgetter
 
-
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -136,9 +135,6 @@ def checkDayDifference(diffDayCount, now, timeObject):
         if "min" in timeObject and now.minute < int(timeObject["min"]):
             print("nice hour")
         else:
-            print(now.minute)
-            print(timeObject["min"])
-            print("sum a day")
             diffDayCount += 1
     return diffDayCount
 
@@ -322,6 +318,9 @@ def randomResponse(update, bot):
         if wasChanged:
             update.message.reply_text(
                 update.message.text, reply_to_message_id=update.message.message_id)
+            bot.send_sticker(chat_id=update.message.chat_id, sticker=open(
+                os.path.join(os.path.dirname(__file__)) +
+                '/data' + '/stickers/faurio.webp', 'rb'))
     elif randomValue == 10:
         global messageOwner
         if messageOwner == 0:
@@ -493,6 +492,19 @@ def connectToSpotifyAndCheckAPI(update, videoTitle, videoTags, video):
         addToSpotifyPlaylist(results, update)
 
 
+def addDataToJson(text):
+    msg = replaceStr(text, "cookie añade")
+    msgSplitted = msg.split(" ")
+    msg = replaceStr(msg, msgSplitted[0])
+    if msgSplitted[0] == "random":
+        dataCookie['randomMsg'].append  (msg)
+    elif msgSplitted[0] == "repite":
+        dataCookie['randomJobMsg'].append(msg)
+
+    with open('data_cookie.json', 'w') as outfile:
+        json.dump(dataCookie, outfile)
+
+
 def echo(bot, update):
     global canTalk
     global firstMsg
@@ -548,12 +560,16 @@ def echo(bot, update):
                     saveDataSong(update, None)
 
         if canTalk:
+
+            if "cookie añade" in update.message.text.lower():
+                addDataToJson(update.message.text.lower())
+
             # voice
            # if re.search(r'\<3\b', update.message.text.lower()):
            #     randomAudioIndex = getRandomByValue(len(m3AudiosPath) -1)
            #     sendVoice(bot, update, m3AudiosPath[randomAudioIndex])
             # gif
-            if re.search(r'\bpfff[f]+\b', update.message.text.lower()) or '...' == update.message.text:
+            elif re.search(r'\bpfff[f]+\b', update.message.text.lower()) or '...' == update.message.text:
                 randomValue = getRandomByValue(4)
                 if randomValue <= 1:
                     sendGif(bot, update, dataPath + '/gifs/pffff.mp4')
