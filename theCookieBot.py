@@ -462,9 +462,9 @@ def replaceYouTubeVideoName(videoTitle):
     videoTitle = re.sub(r'\[[\[a-zA-Z :\'0-9\]]+\]', '', videoTitle)
     videoTitle = videoTitle.lower().replace("official video", "")
     videoTitle = videoTitle.lower().replace("official music video", "")
-    videoTitle = videoTitle.lower().replace("videoclip oficiai", "")
-    videoTitle = videoTitle.lower().replace("video clip oficiai", "")
     videoTitle = videoTitle.lower().replace("videoclip", "")
+    videoTitle = videoTitle.lower().replace("video clip", "")
+    videoTitle = videoTitle.lower().replace("oficial", "")
     return videoTitle
 
 
@@ -524,6 +524,10 @@ def echo(bot, update):
             msgSplit = msg.split(" ")
             msg = msg.replace(
                 msgSplit[0] + " " + msgSplit[1] + " ", "")
+            for i in range(len(update.message.entities)):
+                if update.message.entities[i].type == 'url':
+                    url = update.message.text[int(update.message.entities[i]["offset"]):int(int(update.message.entities[i]["offset"])+int(update.message.entities[i]["length"]))]
+                    msg= msg.replace(url.lower(), url)
             rememberJobs(bot, update, msg)
 
         for i in range(len(update.message.entities)):
@@ -562,7 +566,14 @@ def echo(bot, update):
         if canTalk:
 
             if "cookie añade" in update.message.text.lower():
-                addDataToJson(update.message.text.lower())
+                videoTitle = update.message.text.lower().replace("cookie añade ", "")
+
+                if censorYoutubeVideo(videoTitle):
+                    update.message.reply_text(
+                        'No. :)', reply_to_message_id=update.message.message_id)
+                else:
+                    connectToSpotifyAndCheckAPI(
+                        update, videoTitle, [], None)
 
             # voice
            # if re.search(r'\<3\b', update.message.text.lower()):
