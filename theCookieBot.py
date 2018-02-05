@@ -21,6 +21,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import spotipy.util as util
 from youtubeApi import YoutubeAPI
 from operator import itemgetter
+from telegram.ext.dispatcher import run_async
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -30,10 +31,6 @@ logger = logging.getLogger(__name__)
 
 dataPath = os.path.join(os.path.dirname(__file__)) + '/data'
 
-random4GodMsg = ['dime', 'basta', 'déjame',
-                 'ahora no', 'ZzZzzzZzz', '¿qué te pasa?']
-mimimimiStickerPath = ['/stickers/mimimi.webp',
-                       '/stickers/mimimi1.webp', '/stickers/mimimi2.webp']
 m3AudiosPath = []
 huehuehuePath = ['/gifs/huehuehue.mp4', '/gifs/huehuehue1.mp4']
 canTalk = True
@@ -41,6 +38,7 @@ firstMsg = True
 maxValueForJob = 5
 indexValueForJob = 0
 messageOwner = 0
+downloadData = None
 dataCookie = {}
 weekdayConstant = ['lunes', 'martes', 'miércoles',
                    'jueves', 'viernes', 'sábado', 'domingo']
@@ -51,10 +49,6 @@ def ini_to_dict(path):
     :param path: Path to file
     :return: an OrderedDict of that path ini data
     """
-    global dataCookie
-    json_file = open(
-        os.path.join(os.path.dirname(__file__)) + '/data_cookie.json', 'r')
-    dataCookie = json.load(json_file)
     config = ConfigParser()
     config.read(path)
     return_value = OrderedDict()
@@ -90,7 +84,7 @@ def checkHourToRemember(msg, timeObject):
     # Check if hour
     msgArray = msg.split(" ")
     msgHourData = msgArray[0]
-    if (msgArray[0] == "a" and "la" in msgArray[1]):
+    if (msgArray[0] == "a" and ("la" in msgArray[1] or "las" in msgArray[1])):
         msgHourData = msgArray[2]
         msg = msg.replace(msgArray[0] + " " + msgArray[1] + " ", "", 1)
     if ":" in msgHourData:
@@ -320,7 +314,7 @@ def randomResponse(update, bot):
                 update.message.text, reply_to_message_id=update.message.message_id)
             bot.send_sticker(chat_id=update.message.chat_id, sticker=open(
                 os.path.join(os.path.dirname(__file__)) +
-                '/data' + '/stickers/faurio.webp', 'rb'))
+                '/data' + dataCookie["stickers"]["dinofaurioPath"][0], 'rb'))
     elif randomValue == 10:
         global messageOwner
         if messageOwner == 0:
@@ -335,10 +329,10 @@ def randomResponse(update, bot):
         update.message.text = re.sub(r'[AEOUaeou]+', 'i', update.message.text)
         update.message.reply_text(
             update.message.text, reply_to_message_id=update.message.message_id)
-        randomMsgIndex = getRandomByValue(len(mimimimiStickerPath) - 1)
+        randomMsgIndex = getRandomByValue(
+            len(dataCookie["stickers"]["mimimimiStickerPath"]) - 1)
         bot.send_sticker(chat_id=update.message.chat_id, sticker=open(
-            dataPath + mimimimiStickerPath[randomMsgIndex], 'rb'))
-
+            dataPath + dataCookie["stickers"]["mimimimiStickerPath"][randomMsgIndex], 'rb'))
 
 def sendGif(bot, update, pathGif):
     bot.sendChatAction(chat_id=update.message.chat_id,
@@ -355,16 +349,102 @@ def sendImg(bot, update, pathImg):
     bot.send_photo(chat_id=update.message.chat_id, photo=open(pathImg, 'rb'))
 
 
+def sendMsg(bot, update, text, isReply):
+    if isReply:
+        update.message.reply_text(
+            text, reply_to_message_id=update.message.message_id)
+    else:
+        update.message.reply_text(
+            text)
+
+
+def sendSticker(bot, update, pathSticker, isReply):
+    if isReply:
+        bot.send_sticker(chat_id=update.message.chat_id, sticker=open(
+            pathSticker, 'rb'), reply_to_message_id=update.message.message_id)
+    else:
+        bot.send_sticker(chat_id=update.message.chat_id, sticker=open(
+            pathSticker, 'rb'))
+
+
+def sendData(bot, update, object):
+    if object["type"] == "voice":
+        sendVoice(
+            bot, update, dataPath + getPath(object["path"]))
+    elif object["type"] == "gif":
+        sendGif(
+            bot, update, dataPath + getPath(object["path"]))
+    elif object["type"] == "text":
+        sendMsg(
+            bot, update, getPath(object["path"]), object["isReply"])
+    elif object["type"] == "img":
+        sendImg(bot, update, dataPath + getPath(object["path"]))
+    elif object["type"] == "sticker":
+        sendSticker(bot, update, dataPath +
+                    getPath(object["path"]), object["isReply"])
+
+
+def getPath(arrayData):
+    index = getRandomByValue(len(arrayData) - 1)
+    return arrayData[index]
+
+
+def checkIfSendData(bot, update, object):
+    if len(object["lastTimeSentIt"]) is not 0:
+        lastTimeSentIt = datetime.strptime(
+            object["lastTimeSentIt"], '%Y-%m-%dT%H:%M:%S.%f')
+        now = datetime.now()
+        if now.date() > lastTimeSentIt.date():
+            if object["randomMaxValue"] is not 0:
+                randomValue = getRandomByValue(object["randomMaxValue"])
+                if randomValue <= 1:
+                    sendData(bot, update, object)
+                    if object["doubleMsg"] is True:
+                        sendData(bot, update, object["doubleObj"])
+                    return True
+            else:
+                sendData(bot, update, object)
+                if object["doubleMsg"] is True:
+                    sendData(bot, update, object["doubleObj"])
+                return True
+    else:
+        sendData(bot, update, object)
+        if object["doubleMsg"] is True:
+            sendData(bot, update, object["doubleObj"])
+        return True
+    return False
+
+
+def addTime(now, object):
+    if object["timeToIncrement"] is not 0:
+        timeObject = {'type': object["kindTime"],
+                      'value':  object["timeToIncrement"]}
+        return checkRememberDate(now, timeObject, None).isoformat()
+    else:
+        return ""
+
 def isAdmin(bot, update):
     if update.message.from_user.username != None and update.message.from_user.id in get_admin_ids(bot, update.message.chat_id):
         return True
     else:
         return None
 
+def loadDictionary(bot, update):
+    global dataCookie
+    try:
+        json_file = open('data_cookie.json', encoding="utf-8")
+        dataCookie = json.load(json_file)
+        data = json.dumps(
+            {'data': dataCookie})
+        dataCookie = json.loads(data)
+        dataCookie = dataCookie["data"]
+    except IOError:
+        dataCookie = {}
+
 
 def startJobs(bot, update):
     now = datetime.now() - timedelta(days=1)
-    now = now.replace(hour=19, minute=00)
+    now = now.replace(hour=getRandomByValue(23), minute=getRandomByValue(59))
     job_daily = j.run_daily(callback_andalucia, now.time(), days=(
         0, 1, 2, 3, 4, 5, 6), context=update.message.chat_id)
     data = loadMemories()
@@ -444,6 +524,10 @@ def addToSpotifyPlaylist(results, update):
     for j in range(len(results['tracks']['items'])):
         idsToAdd.insert(0, results['tracks']['items'][j]['id'])
 
+    callSpotifyApiToAddSong(idsToAdd)
+
+
+def callSpotifyApiToAddSong(idsToAdd):
     scope = 'playlist-modify playlist-modify-public user-library-read playlist-modify-private'
     token = util.prompt_for_user_token(settings["spotify"]["spotifyuser"], scope, client_id=settings["spotify"]
                                        ["spotifyclientid"], client_secret=settings["spotify"]["spotifysecret"], redirect_uri='http://localhost:8000')
@@ -488,8 +572,66 @@ def connectToSpotifyAndCheckAPI(update, videoTitle, videoTags, video):
 
     if results == None or (results['tracks']['total'] != None and results['tracks']['total'] == 0):
         saveDataSong(update, None)
+        return False
     else:
         addToSpotifyPlaylist(results, update)
+        return True
+
+
+def youtubeLink(bot, update):
+    try:
+        videoid = ""
+        if 'youtu.be' not in update.message.text.lower():
+            videoid = update.message.text.split('v=')
+            videoid = videoid[1].split(' ')[0]
+            videoid = videoid.split('&')[0]
+        else:
+            videoid = update.message.text.split('youtu.be/')
+            videoid = videoid[1].split(' ')[0]
+            videoid = videoid.split('&')[0]
+        youtube = YoutubeAPI(
+            {'key': settings["main"]["youtubeapikey"]})
+        video = youtube.get_video_info(videoid)
+        videoTitle = video['snippet']['title'].lower()
+        videoTitle = replaceYouTubeVideoName(videoTitle)
+
+        if censorYoutubeVideo(videoTitle):
+            update.message.reply_text(
+                '...', reply_to_message_id=update.message.message_id)
+        else:
+            videoTags = ""
+            tagsIndex = 0
+            videoTags = gimmeTags(video, videoTags, 3)
+            if videoTitle != None and videoTags != None:
+                return connectToSpotifyAndCheckAPI(
+                    update, videoTitle, videoTags, video)
+            else:
+                saveDataSong(update, None)
+    except:
+        saveDataSong(update, None)
+    return False
+
+
+def spotifyLink(bot, update):
+    try:
+        trackid = update.message.text.split("track/")
+        trackid = trackid[1].split(" ")
+        if "?" in trackid:
+            trackid = trackid[1].split("?")
+        trackid = trackid[0]
+        callSpotifyApiToAddSong([trackid])
+        return True
+    except:
+        saveDataSong(update, None)
+    return False
+
+
+def checkYoutubeSpotifyLinks(bot, update):
+    for i in range(len(update.message.entities)):
+        if update.message.entities[i].type == 'url' and ('youtu.be' in update.message.text.lower() or 'youtube.com' in update.message.text.lower()):
+            return youtubeLink(bot, update)
+        elif update.message.entities[i].type == 'url' and 'spotify.com' in update.message.text:
+            return spotifyLink(bot, update)
 
 
 def addDataToJson(text):
@@ -497,7 +639,7 @@ def addDataToJson(text):
     msgSplitted = msg.split(" ")
     msg = replaceStr(msg, msgSplitted[0])
     if msgSplitted[0] == "random":
-        dataCookie['randomMsg'].append  (msg)
+        dataCookie['randomMsg'].append(msg)
     elif msgSplitted[0] == "repite":
         dataCookie['randomJobMsg'].append(msg)
 
@@ -505,9 +647,11 @@ def addDataToJson(text):
         json.dump(dataCookie, outfile)
 
 
+@run_async
 def echo(bot, update):
     global canTalk
     global firstMsg
+    global dataCookie
 
     if str(update.message.chat_id) == str(settings["main"]["groupid"]):
         if update.message.text != None and "cookie para" == update.message.text.lower():
@@ -515,8 +659,12 @@ def echo(bot, update):
         elif update.message.text != None and "cookie sigue" == update.message.text.lower():
             restart(bot, update)
 
+        wasAdded = False
+        wasAdded = checkYoutubeSpotifyLinks(bot, update)
+
         if firstMsg:
             startJobs(bot, update)
+            loadDictionary(bot, update)
             firstMsg = None
 
         if "cookie recuerda" in update.message.text.lower() or "cookie recuerdame" in update.message.text.lower() or "cookie recuérdame" in update.message.text.lower():
@@ -526,98 +674,45 @@ def echo(bot, update):
                 msgSplit[0] + " " + msgSplit[1] + " ", "")
             for i in range(len(update.message.entities)):
                 if update.message.entities[i].type == 'url':
-                    url = update.message.text[int(update.message.entities[i]["offset"]):int(int(update.message.entities[i]["offset"])+int(update.message.entities[i]["length"]))]
-                    msg= msg.replace(url.lower(), url)
+                    url = update.message.text[int(update.message.entities[i]["offset"]):int(int(
+                        update.message.entities[i]["offset"]) + int(update.message.entities[i]["length"]))]
+                    msg = msg.replace(url.lower(), url)
             rememberJobs(bot, update, msg)
+        elif "cookie mete" in update.message.text.lower():
+            hasUrl = False
+            videoTitle = update.message.text.lower().replace("cookie mete ", "")
+            for i in range(len(update.message.entities)):
+                if update.message.entities[i].type == 'url':
+                    hasUrl = True
 
-        for i in range(len(update.message.entities)):
-            if update.message.entities[i].type == 'url' and ('youtu.be' in update.message.text.lower() or 'youtube.com' in update.message.text.lower()):
-                try:
-                    videoid = ""
-                    if 'youtu.be' not in update.message.text.lower():
-                        videoid = update.message.text.split('v=')
-                        videoid = videoid[1].split(' ')[0]
-                        videoid = videoid.split('&')[0]
-                    else:
-                        videoid = update.message.text.split('youtu.be/')
-                        videoid = videoid[1].split(' ')[0]
-                        videoid = videoid.split('&')[0]
-                    youtube = YoutubeAPI(
-                        {'key': settings["main"]["youtubeapikey"]})
-                    video = youtube.get_video_info(videoid)
-                    videoTitle = video['snippet']['title'].lower()
-                    videoTitle = replaceYouTubeVideoName(videoTitle)
-
-                    if censorYoutubeVideo(videoTitle):
-                        update.message.reply_text(
-                            '...', reply_to_message_id=update.message.message_id)
-                    else:
-                        videoTags = ""
-                        tagsIndex = 0
-                        videoTags = gimmeTags(video, videoTags, 3)
-                        if videoTitle != None and videoTags != None:
-                            connectToSpotifyAndCheckAPI(
-                                update, videoTitle, videoTags, video)
-                        else:
-                            saveDataSong(update, None)
-                except:
-                    saveDataSong(update, None)
-
-        if canTalk:
-
-            if "cookie añade" in update.message.text.lower():
-                videoTitle = update.message.text.lower().replace("cookie añade ", "")
-
+            if hasUrl == False:
                 if censorYoutubeVideo(videoTitle):
                     update.message.reply_text(
                         'No. :)', reply_to_message_id=update.message.message_id)
                 else:
                     connectToSpotifyAndCheckAPI(
                         update, videoTitle, [], None)
+            else:
+                checkYoutubeSpotifyLinks(bot, update)
+
+        if "cookie añade" in update.message.text.lower():
+            addDataToJson(update.message.text.lower())
+        elif canTalk:
 
             # voice
            # if re.search(r'\<3\b', update.message.text.lower()):
            #     randomAudioIndex = getRandomByValue(len(m3AudiosPath) -1)
            #     sendVoice(bot, update, m3AudiosPath[randomAudioIndex])
             # gif
-            elif re.search(r'\bpfff[f]+\b', update.message.text.lower()) or '...' == update.message.text:
-                randomValue = getRandomByValue(4)
-                if randomValue <= 1:
-                    sendGif(bot, update, dataPath + '/gifs/pffff.mp4')
-            elif "gif del fantasma" in update.message.text.lower():
-                sendGif(bot, update, dataPath + '/gifs/fantasma.mp4')
-            elif "bukkake" in update.message.text.lower() or "galletitas" in update.message.text.lower():
-                sendGif(bot, update, dataPath + '/gifs/perro.mp4')
-            elif "cookie añade" in update.message.text.lower():
-                videoTitle = update.message.text.lower().replace("cookie añade ", "")
+
+            if "cookie mete" in update.message.text.lower():
+                videoTitle = update.message.text.lower().replace("cookie mete ", "")
 
                 if censorYoutubeVideo(videoTitle):
                     update.message.reply_text(
                         'No. :)', reply_to_message_id=update.message.message_id)
                 else:
                     connectToSpotifyAndCheckAPI(update, videoTitle, [], None)
-            elif re.search(r'\bcabra\b', update.message.text.lower()):
-                randomValue = getRandomByValue(4)
-                if randomValue <= 1:
-                    sendGif(bot, update, dataPath + '/gifs/cabra_scream.mp4')
-            elif unidecode(u'qué?') == unidecode(update.message.text.lower()) or "que?" == update.message.text.lower():
-                sendGif(bot, update, dataPath + '/gifs/cabra.mp4')
-            elif unidecode(u'aió') == unidecode(update.message.text.lower()) or re.search(r'\baio\b', update.message.text.lower()):
-                sendGif(bot, update, dataPath + '/gifs/bye.mp4')
-            elif re.search(r'\breviento\b', update.message.text.lower()) or re.search(r'\brebiento\b', update.message.text.lower()):
-                sendGif(bot, update, dataPath + '/gifs/acho_reviento.mp4')
-            elif re.search(r'\bchoca\b', update.message.text.lower()):
-                sendGif(bot, update, dataPath + '/gifs/choca.mp4')
-            elif re.search(r'\bbro\b', update.message.text.lower()):
-                sendGif(bot, update, dataPath + '/gifs/cat_bro.mp4')
-            elif "templo" in update.message.text.lower() or "gimnasio" in update.message.text.lower():
-                randomValue = getRandomByValue(4)
-                if randomValue <= 1:
-                    sendGif(bot, update, dataPath + '/gifs/templo.mp4')
-            elif re.search(r'\bhuehue[hue]+\b', update.message.text.lower()):
-                randomHuehuehueIndex = getRandomByValue(len(huehuehuePath) - 1)
-                sendGif(bot, update, dataPath +
-                        huehuehuePath[randomHuehuehueIndex])
 
             # messages
             elif "cookie dame la lista" in update.message.text.lower():
@@ -634,11 +729,47 @@ def echo(bot, update):
                     update.message.reply_text(
                         random4GodMsg[indexMsg], reply_to_message_id=update.message.message_id)
 
-            # imgs
+            foundKey = False
+            indexArray = 0
+            dictionaryIndex = 0
+            now = datetime.now()
+            while dictionaryIndex < len(dataCookie["keywords"]) and foundKey is not True:
+                if len(dataCookie["keywords"][dictionaryIndex]["regexpValue"]) > 0:
+                    while indexArray < len(dataCookie["keywords"][dictionaryIndex]["regexpValue"]) and foundKey is not True:
+                        regexr = re.compile(
+                            dataCookie["keywords"][dictionaryIndex]["regexpValue"][indexArray])
+                        if regexr.search(update.message.text.lower()):
+                            if checkIfSendData(bot, update, dataCookie["keywords"][dictionaryIndex]):
+                                dataCookie["keywords"][dictionaryIndex]["lastTimeSentIt"] = addTime(
+                                    now, dataCookie["keywords"][dictionaryIndex])
+                            foundKey = True
+                        indexArray += 1
+                indexArray = 0
+                if len(dataCookie["keywords"][dictionaryIndex]["msgToCheck"]) > 0:
+                    while indexArray < len(dataCookie["keywords"][dictionaryIndex]["msgToCheck"]) and foundKey is not True:
+                        if dataCookie["keywords"][dictionaryIndex]["msgToCheck"][indexArray]["type"] == "in":
+                            if dataCookie["keywords"][dictionaryIndex]["msgToCheck"][indexArray]["text"] in update.message.text.lower():
+                                if checkIfSendData(bot, update, dataCookie["keywords"][dictionaryIndex]):
+                                    dataCookie["keywords"][dictionaryIndex]["lastTimeSentIt"] = addTime(
+                                        now, dataCookie["keywords"][dictionaryIndex])
+                                foundKey = True
+                        elif dataCookie["keywords"][dictionaryIndex]["msgToCheck"][indexArray]["text"] == update.message.text:
+                            if checkIfSendData(bot, update, dataCookie["keywords"][dictionaryIndex]):
+                                dataCookie["keywords"][dictionaryIndex]["lastTimeSentIt"] = addTime(
+                                    now, dataCookie["keywords"][dictionaryIndex])
+                            foundKey = True
+                        indexArray += 1
+                dictionaryIndex += 1
 
-            # stickers
-            elif len(update.message.text) > 4:  # mimimimimimi
-                randomResponse(update, bot)
+            if foundKey is not True:
+                if "random" in update.message.text.lower():
+                    indexRandom = getRandomByValue(len(dataCookie["keywords"]) - 1)
+                    sendData(bot, update, dataCookie["keywords"][indexRandom])
+                    if dataCookie["keywords"][indexRandom]["doubleMsg"] is True:
+                        sendData(bot, update, object["doubleObj"])
+
+                elif len(update.message.text) > 7:  # mimimimimimi
+                    randomResponse(update, bot)
 
 
 def error(bot, update, error):
