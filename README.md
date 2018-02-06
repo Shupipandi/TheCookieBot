@@ -96,11 +96,47 @@ userNames.json ->
 	"value": "telegramId"
 }]
 ```
+data_cookie.json.
+
+## How work Cookie
+### Commands
+#### Add Youtube songs or Spotify songs to Spotify List
+```
+cookie mete Numb Linkin Park -- 
+cookie mete <songname> <groupName - Not necessary if is the first song in Spotify with the songname> 
+
+```
+``` 
+<some text>  https://www.youtube.com/watch?v=hJ_eVIZkjZE --
+<some text>  <youtube link video wt complete url or shorted url>
+Cookie get the video name and remove all text that be inside () and [] to search in Spotify API.
+If he can't find the song he will try with the different video-tags of youtube
+
+or a spotify song link with "track/<idsong>-/whatever https://open.spotify.com/track/1TrUEdT8FmBmcKVyfucbnw?si=BXGgTDv_Qs-8-Sv_NdrBHA
+
+```
+#### Remember that...
+```
+cookie recuerda a las hh:mm some text -> remember to the user that sent it some text at that hour of same day or next day is the time was passed.
+cookie recuerda el dd/mm/yyyy some text -> remember to the user that sent it some text at actual hour/min.
+cookie recuerda el dd/mm/yyyy a las hh:mm some text -> remember to the user that sent it some text at actual hour/min.
+cookie recuerda a <@username/realName/name keyword in userNames.json> a las hh:mm some text -> remember to that user some text in selected date.
+cookie recuerda a <@username/realName/name keyword in userNames.json> el dd/mm/yyyy some text -> remember to that user some text in selected date.
+cookie recuerda a <@username/realName/name keyword in userNames.json> el dd/mm/yyyy a las hh:mm some text -> remember to that user some text in selected date.
+cookie recuerda <dateConfigName == mañana/pasado/pasadomañana/luego/después> some text -> remember to that user some text in selected date.
+cookie recuerda a <username> <dateConfigName == mañana/pasado/pasadomañana/luego/después> some text -> remember to that user some text in selected date.
+cookie recuerda a <username> el <weekday> a las hh:mm some text -> remember to that user some text in selected date.
+```
+#### Add new data...
+```
+cookie añade random <some text> -> add new data to "randomMsg" array
+cookie añade repite <some text> -> add new data to "randomJobMsg" array
+```
 
 ## Special Thanks
 
 Spotipy is from -> https://github.com/plamere/spotipy 
-
+Ypirqui from @kokuma -> https://github.com/juanalonso/ypirqui
 
 ## Extraball
 ### Send messages like a ninja
