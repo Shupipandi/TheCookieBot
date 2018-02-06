@@ -721,6 +721,8 @@ def echo(bot, update):
                 bot.send_document(chat_id=update.message.chat_id, document=open(
                     os.path.join(os.path.dirname(__file__)) + '/data_cookie.json', 'rb'))
                 bot.send_document(chat_id=update.message.chat_id, document=open(
+                    os.path.join(os.path.dirname(__file__)) + '/userNames.json', 'rb'))
+                bot.send_document(chat_id=update.message.chat_id, document=open(
                     os.path.join(os.path.dirname(__file__)) + '/config.ini', 'rb'))
             elif re.search(r'\bdios\b', update.message.text.lower()):
                 randomValue = getRandomByValue(4)
