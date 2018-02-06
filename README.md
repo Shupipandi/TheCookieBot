@@ -136,6 +136,7 @@ cookie añade repite <some text> -> add new data to "randomJobMsg" array
 ## Special Thanks
 
 Spotipy is from -> https://github.com/plamere/spotipy 
+
 Ypirqui from @kokuma -> https://github.com/juanalonso/ypirqui
 
 ## Extraball
