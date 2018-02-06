@@ -98,7 +98,7 @@ userNames.json ->
 ```
 data_cookie.json.
 
-## How work Cookie
+## How works Cookie
 ### Commands
 #### Add Youtube songs or Spotify songs to Spotify List
 ```
