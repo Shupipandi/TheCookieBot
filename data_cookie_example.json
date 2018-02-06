@@ -1,0 +1,44 @@
+{
+  "keywords": [{
+    "id": "example",
+    "type": "gif//voice//text//sticker",
+    "regexpValue": ["\\bgiff[f]+\\b", "anotherRegularExpr"],
+    "msgToCheck": [{
+      "text": "text to compare",
+      "type": "eq // in"
+    }],
+    "randomMaxValue": 3,
+    "path": ["path", "of", "differents", "path",  "files", "or", "plain text to send an answer"],
+    "lastTimeSentIt": "check to send again",
+    "timeToIncrement": 2,
+    "kindTime": "min",
+    "doubleMsg": false,
+    "doubleObj": {},
+    "notIn": ["array condition", "to check that a sentence is not in the message"],
+    "isReply": false
+  }, {
+    "id": "example2",
+    "type": "text",
+    "regexpValue": ["example"],
+    "msgToCheck": [],
+    "randomMaxValue": 0,
+    "path": ["/hello"],
+    "lastTimeSentIt": "",
+    "timeToIncrement": 0,
+    "kindTime": "min",
+    "doubleMsg": true,
+    "doubleObj": {
+      "type": "voice",
+      "path": ["/voices/hi.ogg"],
+      "isReply": false
+    },
+    "notIn": [],
+    "isReply": false
+  }],
+  "randomMsg": ["array with different messages to send"],
+  "randomJobMsg": ["array with messages", "to send randomly in combo of 5 msgs in x seconds"],
+  "stickers": {
+    "mimimimiStickerPath": [""],
+    "dinofaurioPath": [""]
+  }
+}
