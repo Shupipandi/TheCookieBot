@@ -31,8 +31,6 @@ logger = logging.getLogger(__name__)
 
 dataPath = os.path.join(os.path.dirname(__file__)) + '/data'
 
-m3AudiosPath = []
-huehuehuePath = ['/gifs/huehuehue.mp4', '/gifs/huehuehue1.mp4']
 canTalk = True
 firstMsg = True
 maxValueForJob = 5
@@ -704,18 +702,8 @@ def echo(bot, update):
            #     randomAudioIndex = getRandomByValue(len(m3AudiosPath) -1)
            #     sendVoice(bot, update, m3AudiosPath[randomAudioIndex])
             # gif
-
-            if "cookie mete" in update.message.text.lower():
-                videoTitle = update.message.text.lower().replace("cookie mete ", "")
-
-                if censorYoutubeVideo(videoTitle):
-                    update.message.reply_text(
-                        'No. :)', reply_to_message_id=update.message.message_id)
-                else:
-                    connectToSpotifyAndCheckAPI(update, videoTitle, [], None)
-
             # messages
-            elif "cookie dame la lista" in update.message.text.lower():
+            if "cookie dame la lista" in update.message.text.lower():
                 gimmeTheSpotifyPlaylistLink(bot, update)
             elif "cookie dame la config" in update.message.text.lower():
                 bot.send_document(chat_id=update.message.chat_id, document=open(
