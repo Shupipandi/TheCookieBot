@@ -6,7 +6,6 @@ import re
 import pickle
 from unidecode import unidecode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from random import randint
 from datetime import datetime, timedelta
 import dateutil.parser
 from configparser import ConfigParser
@@ -16,12 +15,9 @@ import os
 import sys
 from threading import Thread
 import logging
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-import spotipy.util as util
-from youtubeApi import YoutubeAPI
-from operator import itemgetter
-from telegram.ext.dispatcher import run_async
+from classes.spotifyYouTubeClass import SpotifyYouTubeClass
+from classes.checkAndSendDataClass import CheckAndSendDataClass
+from classes.utils import Utils
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -29,7 +25,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-dataPath = os.path.join(os.path.dirname(__file__)) + '/data'
+dataPath = os.path.join(os.path.dirname(__file__)) + '/data/..'
 
 canTalk = True
 firstMsg = True
@@ -58,7 +54,6 @@ def ini_to_dict(path):
     return return_value
 
 
-# Create the EventHandler and pass it your bot's token.
 config = ConfigParser()
 settings = ini_to_dict(os.path.join(os.path.dirname(__file__), "config.ini"))
 updater = Updater(settings["main"]["token"])
@@ -77,191 +72,15 @@ def start(bot, update):
 def help(bot, update):
     update.message.reply_text(':)')
 
-
-def checkHourToRemember(msg, timeObject):
-    # Check if hour
-    msgArray = msg.split(" ")
-    msgHourData = msgArray[0]
-    if (msgArray[0] == "a" and ("la" in msgArray[1] or "las" in msgArray[1])):
-        msgHourData = msgArray[2]
-        msg = msg.replace(msgArray[0] + " " + msgArray[1] + " ", "", 1)
-    if ":" in msgHourData:
-        hourDataSplitted = msgHourData.split(":")
-        timeObject["hour"] = hourDataSplitted[0]
-        timeObject["min"] = hourDataSplitted[1]
-        msg = msg.replace(msgHourData + " ", "", 1)
-        if int(timeObject["min"]) > 59:
-            hours = int(timeObject["hour"]) + 1
-            mins = int(timeObject["min"]) - 59
-            timeObject["hour"] = hours
-            timeObject["min"] = mins
-    elif isinstance(msgHourData, int):
-        timeObject["hour"] = msgHourData
-        msg = msg.replace(msgHourData + " ", "", 1)
-
-    return msg, timeObject
-
-
-def checkRememberDate(now, timeObject, isWeekday):
-    if isWeekday == None:
-        if "type" in timeObject and timeObject["type"] == "day":
-            now = now + timedelta(days=int(timeObject["value"]))
-        elif "type" in timeObject and timeObject["type"] == "hour":
-            now = now + timedelta(hours=int(timeObject["value"]))
-
-    if "hour" in timeObject and timeObject["hour"] != None:
-        now = now.replace(hour=int(timeObject["hour"]))
-        if timeObject["min"] != None:
-            now = now.replace(minute=int(timeObject["min"]))
-    return now
-
-
-def replaceStr(msg, str):
-    if str in msg:
-        msg = msg.replace(str + " ", "", 1)
-    return msg
-
-
-def checkDayDifference(diffDayCount, now, timeObject):
-    if diffDayCount == 0 and "hor" in timeObject and now.hour <= int(timeObject["hour"]):
-        if "min" in timeObject and now.minute < int(timeObject["min"]):
-            print("nice hour")
-        else:
-            diffDayCount += 1
-    return diffDayCount
-
-
-def getUsernameToNotify(msg, update):
-    data = []
-    try:
-        json_file = open('userNames.json', 'r')
-        data = json.load(json_file)
-    except IOError:
-        data = []
-
-    msgArray = msg.split(" ")
-    index = 0
-    while index < len(data):
-        if data[index]["name"] in msgArray[1]:
-            msg = msg.replace(msgArray[0] + " " + msgArray[1] + " ", "", 1)
-            return data[index]["value"], msg
-        index += 1
-    return update.message.from_user.name, msg
-
-
-def rememberJobs(bot, update, msg):
-    timeObject = checkTimeToRemember(msg)
-    usernameToNotify, msg = getUsernameToNotify(msg, update)
-    # with key words in config json
-    if timeObject != None:
-        msg = msg.replace(timeObject["name"] + " ", "", 1)
-        msg, timeObject = checkHourToRemember(msg, timeObject)
-
-        msgArray = msg.split(" ")
-        msg = replaceStr(msg, "que")
-
-        now = datetime.now()
-        now = checkRememberDate(now, timeObject, None)
-        if datetime.now() > now:
-            now = now + timedelta(days=1)
-
-    # with dd/mm/yyyy config
-    elif re.search(r'([0-9]+/[0-9]+/[0-9]+)', msg):
-        msgArray = msg.split(" ")
-        msg = replaceStr(msg, "el")
-
-        dateWithoutSplit = re.search(r'([0-9]+/[0-9]+/[0-9]+)', msg)
-        dateString = dateWithoutSplit.group(0)
-        dateSplitted = dateString.split('/')
-        now = datetime.now()
-
-        msg = replaceStr(msg, dateString)
-        msg = replaceStr(msg, "que")
-
-        now = now.replace(int(dateSplitted[2]), int(
-            dateSplitted[1]), int(dateSplitted[0]))
-        timeObject = {}
-        msg, timeObject = checkHourToRemember(msg, timeObject)
-        now = checkRememberDate(now, timeObject, None)
-        if datetime.now() > now:
-            now = now + timedelta(days=1)
-
-    # with weekday config
+# Check if user is an admin
+def isAdmin(bot, update):
+    if update.message.from_user.username != None and update.message.from_user.id in get_admin_ids(bot, update.message.chat_id):
+        return True
     else:
-        msgArray = msg.split(" ")
-        msg = replaceStr(msg, "el")
-
-        found = None
-        index = 0
-        while index < len(weekdayConstant) and found != True:
-            if weekdayConstant[index] in msg:
-                found = True
-                msg = msg.replace(weekdayConstant[index] + " ", "", 1)
-            else:
-                index += 1
-        now = datetime.now()
-        todayNumber = now.weekday()
-        diffDayCount = 0
-        # check how many days is from today
-        if found:
-            if int(todayNumber) < index:
-                diffDayCount = index - int(todayNumber) + 1
-            else:
-                diffDayCount = (6 - int(todayNumber)) + index + 1
-
-        msg = replaceStr(msg, "que")
-
-        timeObject = {}
-        msg, timeObject = checkHourToRemember(msg, timeObject)
-        now = checkRememberDate(now, timeObject, True)
-        diffDayCount = checkDayDifference(
-            diffDayCount, datetime.now(), timeObject)
-        now = now + timedelta(days=diffDayCount)
-
-    update.message.reply_text(
-        "Vale", reply_to_message_id=update.message.message_id)
-    now = now.replace(second=0)
-    saveMessageToRemember(
-        usernameToNotify, msg, now.isoformat())
-    j.run_once(callback_remember, now, context=update.message.chat_id)
+        return None
 
 
-def saveMessageToRemember(username, msg, when):
-    data = []
-    try:
-        json_file = open('memories.json', 'r')
-        data = json.load(json_file)
-        data.append({'username': username, 'msg': msg, 'when': when})
-    except IOError:
-        data = [{'username': username, 'msg': msg, 'when': when}]
 
-    with open('memories.json', 'w') as outfile:
-        json.dump(data, outfile)
-
-
-def loadMemories():
-    try:
-        json_file = open('memories.json', 'r')
-        data = json.load(json_file)
-    except IOError:
-        data = {}
-    data = json.dumps(
-        {'data': data})
-    data = json.loads(data)
-    return data["data"]
-
-
-def gimmeMyMemories():
-    data = loadMemories()
-    data = sorted(
-        data,
-        key=lambda x: datetime.strptime(x['when'], '%Y-%m-%dT%H:%M:%S.%f'), reverse=True
-    )
-    # msg = data[0]
-    msg = data.pop()
-    with open('memories.json', 'w') as outfile:
-        json.dump(data, outfile)
-    return msg
 
 
 def callback_remember(bot, job):
@@ -290,136 +109,10 @@ def getRandomByValue(value):
     return randomValue
 
 
-def randomResponse(update, bot):
-    global dataCookie
-    randomValue = getRandomByValue(200)
-    if randomValue == 11:
-        array = update.message.text.split()
-        randomIndex = getRandomByValue(3)
-        wasChanged = None
-        if randomIndex == 0:
-            wasChanged = bool(re.search(r'[VvSs]+', update.message.text))
-            update.message.text = re.sub(r'[VvSs]+', 'f', update.message.text)
-        elif randomIndex == 1:
-            wasChanged = bool(re.search(r'[Vv]+', update.message.text))
-            update.message.text = re.sub(r'[Vv]+', 'f', update.message.text)
-        else:
-            wasChanged = bool(re.search(r'[TtVvSsCc]+', update.message.text))
-            update.message.text = re.sub(
-                r'[TtVvSsCc]+', 'f', update.message.text)
-        if wasChanged:
-            update.message.reply_text(
-                update.message.text, reply_to_message_id=update.message.message_id)
-            bot.send_sticker(chat_id=update.message.chat_id, sticker=open(
-                os.path.join(os.path.dirname(__file__)) +
-                '/data' + dataCookie["stickers"]["dinofaurioPath"][0], 'rb'))
-    elif randomValue == 10:
-        global messageOwner
-        if messageOwner == 0:
-            messageOwner = '@' + update.message.from_user.username
-            j.run_once(isNowJob, 10, context=update.message.chat_id)
-    elif randomValue <= 9 and randomValue >= 3:
-        randomMsgIndex = getRandomByValue(len(dataCookie['randomMsg']) - 1)
-        update.message.reply_text(
-            dataCookie['randomMsg'][randomMsgIndex], reply_to_message_id=update.message.message_id)
-    elif randomValue < 2:
-        update.message.text = unidecode(update.message.text)
-        update.message.text = re.sub(r'[AEOUaeou]+', 'i', update.message.text)
-        update.message.reply_text(
-            update.message.text, reply_to_message_id=update.message.message_id)
-        randomMsgIndex = getRandomByValue(
-            len(dataCookie["stickers"]["mimimimiStickerPath"]) - 1)
-        bot.send_sticker(chat_id=update.message.chat_id, sticker=open(
-            dataPath + dataCookie["stickers"]["mimimimiStickerPath"][randomMsgIndex], 'rb'))
-
-def sendGif(bot, update, pathGif):
-    bot.sendChatAction(chat_id=update.message.chat_id,
-                       action=telegram.ChatAction.UPLOAD_PHOTO)
-    bot.sendDocument(chat_id=update.message.chat_id,
-                     document=open(pathGif, 'rb'))
-
-
-def sendVoice(bot, update, pathVoice):
-    bot.send_voice(chat_id=update.message.chat_id, voice=open(pathVoice, 'rb'))
-
-
-def sendImg(bot, update, pathImg):
-    bot.send_photo(chat_id=update.message.chat_id, photo=open(pathImg, 'rb'))
-
-
-def sendMsg(bot, update, text, isReply):
-    if isReply:
-        update.message.reply_text(
-            text, reply_to_message_id=update.message.message_id)
-    else:
-        update.message.reply_text(
-            text)
-
-
-def sendSticker(bot, update, pathSticker, isReply):
-    if isReply:
-        bot.send_sticker(chat_id=update.message.chat_id, sticker=open(
-            pathSticker, 'rb'), reply_to_message_id=update.message.message_id)
-    else:
-        bot.send_sticker(chat_id=update.message.chat_id, sticker=open(
-            pathSticker, 'rb'))
-
-
-def sendData(bot, update, object):
-    if object["type"] == "voice":
-        sendVoice(
-            bot, update, dataPath + getPath(object["path"]))
-    elif object["type"] == "gif":
-        sendGif(
-            bot, update, dataPath + getPath(object["path"]))
-    elif object["type"] == "text":
-        sendMsg(
-            bot, update, getPath(object["path"]), object["isReply"])
-    elif object["type"] == "img":
-        sendImg(bot, update, dataPath + getPath(object["path"]))
-    elif object["type"] == "sticker":
-        sendSticker(bot, update, dataPath +
-                    getPath(object["path"]), object["isReply"])
-
-
 def getPath(arrayData):
     index = getRandomByValue(len(arrayData) - 1)
     return arrayData[index]
 
-
-def checkIfSendData(bot, update, object):
-    if len(object["lastTimeSentIt"]) is not 0:
-        lastTimeSentIt = datetime.strptime(
-            object["lastTimeSentIt"], '%Y-%m-%dT%H:%M:%S.%f')
-        now = datetime.now()
-        if now.date() > lastTimeSentIt.date():
-            if object["randomMaxValue"] is not 0:
-                randomValue = getRandomByValue(object["randomMaxValue"])
-                if randomValue <= 1:
-                    sendData(bot, update, object)
-                    if object["doubleMsg"] is True:
-                        sendData(bot, update, object["doubleObj"])
-                    return True
-            else:
-                sendData(bot, update, object)
-                if object["doubleMsg"] is True:
-                    sendData(bot, update, object["doubleObj"])
-                return True
-    else:
-        sendData(bot, update, object)
-        if object["doubleMsg"] is True:
-            sendData(bot, update, object["doubleObj"])
-        return True
-    return False
-
-
-def addTime(now, object):
-    if object["timeToIncrement"] is not 0:
-        timeObject = {'type': object["kindTime"],
-                      'value':  object["timeToIncrement"]}
-        return checkRememberDate(now, timeObject, None).isoformat()
-    else:
-        return ""
 
 def isAdmin(bot, update):
     if update.message.from_user.username != None and update.message.from_user.id in get_admin_ids(bot, update.message.chat_id):
@@ -427,22 +120,17 @@ def isAdmin(bot, update):
     else:
         return None
 
+# Load dictionary data with all bot data
 def loadDictionary(bot, update):
     global dataCookie
-    try:
-        json_file = open('data_cookie.json', encoding="utf-8")
-        dataCookie = json.load(json_file)
-        data = json.dumps(
-            {'data': dataCookie})
-        dataCookie = json.loads(data)
-        dataCookie = dataCookie["data"]
-    except IOError:
-        dataCookie = {}
+    dataCookie = Utils.loadFile('data_cookie.json', False, {})
 
 
+# start rememberjobs and other callbacks
 def startJobs(bot, update):
     now = datetime.now() - timedelta(days=1)
-    now = now.replace(hour=getRandomByValue(23), minute=getRandomByValue(59))
+    restTime = Utils.getRandomByValue(2)
+    now = now.replace(hour=17 + restTime, minute=Utils.getRandomByValue(59))
     job_daily = j.run_daily(callback_andalucia, now.time(), days=(
         0, 1, 2, 3, 4, 5, 6), context=update.message.chat_id)
     data = loadMemories()
@@ -451,6 +139,198 @@ def startJobs(bot, update):
             item["when"]), context=update.message.chat_id)
     #now = now.replace(hour=2, minute=00)
     #job_daily = j.run_daily(callback_bye, now.time(), days=(0,1,2,3,4,5,6), context=update.message.chat_id)
+
+
+# compare the hour that user set in the message
+def checkHourToRemember(msg, timeObject):
+    # Check if hour
+    msgArray = msg.split(" ")
+    msgHourData = msgArray[0]
+    # remove "a la" or "a las" of the msg
+    if (msgArray[0] == "a" and ("la" in msgArray[1] or "las" in msgArray[1])):
+        msgHourData = msgArray[2]
+        msg = msg.replace(msgArray[0] + " " + msgArray[1] + " ", "", 1)
+    if ":" in msgHourData:
+        hourDataSplitted = msgHourData.split(":")
+        timeObject["hour"] = hourDataSplitted[0]
+        timeObject["min"] = hourDataSplitted[1]
+        msg = msg.replace(msgHourData + " ", "", 1)
+        if int(timeObject["min"]) > 59:
+            hours = int(timeObject["hour"]) + 1
+            mins = int(timeObject["min"]) - 59
+            timeObject["hour"] = hours
+            timeObject["min"] = mins
+    # just the hour
+    elif isinstance(msgHourData, int):
+        timeObject["hour"] = msgHourData
+        msg = msg.replace(msgHourData + " ", "", 1)
+
+    return msg, timeObject
+
+# check if hh:mm selected is > than actual to increment a day
+def checkDayDifference(diffDayCount, now, timeObject):
+    if diffDayCount == 0 and "hor" in timeObject and now.hour <= int(timeObject["hour"]):
+        if "min" in timeObject and now.minute < int(timeObject["min"]):
+            print("nice hour")
+        else:
+            diffDayCount += 1
+    return diffDayCount
+
+# check if introduced name is in the json to get the username
+def getUsernameToNotify(msg, update):
+    data = []
+    try:
+        json_file = open('userNames.json', 'r')
+        data = json.load(json_file)
+    except IOError:
+        data = []
+
+    msgArray = msg.split(" ")
+    index = 0
+    while index < len(data):
+        if data[index]["name"] in msgArray[1]:
+            msg = msg.replace(msgArray[0] + " " + msgArray[1] + " ", "", 1)
+            return data[index]["value"], msg
+        index += 1
+    return update.message.from_user.name, msg
+
+# Parse message to get all data
+def rememberJobs(bot, update, msg):
+    #compare time with the dateConfig.json
+    timeObject = checkTimeToRemember(msg)
+    # check is have username in the msg
+    usernameToNotify, msg = getUsernameToNotify(msg, update)
+    # with key words in config json
+    if timeObject != None:
+        msg = msg.replace(timeObject["name"] + " ", "", 1)
+        msg, timeObject = checkHourToRemember(msg, timeObject)
+
+        msgArray = msg.split(" ")
+        msg = Utils.replaceStr(msg, "que")
+
+        now = datetime.now()
+        now = Utils().checkRememberDate(now, timeObject, None)
+        if datetime.now() > now:
+            now = now + timedelta(days=1)
+
+    # with dd/mm/yyyy config
+    elif re.search(r'([0-9]+/[0-9]+/[0-9]+)', msg):
+        msgArray = msg.split(" ")
+        msg = Utils.replaceStr(msg, "el")
+
+        dateWithoutSplit = re.search(r'([0-9]+/[0-9]+/[0-9]+)', msg)
+        dateString = dateWithoutSplit.group(0)
+        dateSplitted = dateString.split('/')
+        now = datetime.now()
+
+        msg = Utils.replaceStr(msg, dateString)
+        msg = Utils.replaceStr(msg, "que")
+
+        now = now.replace(int(dateSplitted[2]), int(
+            dateSplitted[1]), int(dateSplitted[0]))
+        timeObject = {}
+        msg, timeObject = checkHourToRemember(msg, timeObject)
+        now = Utils().checkRememberDate(now, timeObject, None)
+        if datetime.now() > now:
+            now = now + timedelta(days=1)
+
+    # with weekday config or hh:mm
+    else:
+        msgArray = msg.split(" ")
+        msg = Utils.replaceStr(msg, "el")
+
+        found = None
+        index = 0
+        while index < len(weekdayConstant) and found != True:
+            if weekdayConstant[index] in msg:
+                found = True
+                msg = msg.replace(weekdayConstant[index] + " ", "", 1)
+            else:
+                index += 1
+        now = datetime.now()
+        todayNumber = now.weekday()
+        diffDayCount = 0
+        # check how many days is from today
+        if found:
+            if int(todayNumber) < index:
+                diffDayCount = index - int(todayNumber) + 1
+            else:
+                diffDayCount = (6 - int(todayNumber)) + index + 1
+
+        msg = Utils.replaceStr(msg, "que")
+
+        timeObject = {}
+        msg, timeObject = checkHourToRemember(msg, timeObject)
+        now = Utils().checkRememberDate(now, timeObject, True)
+        diffDayCount = checkDayDifference(
+            diffDayCount, datetime.now(), timeObject)
+        now = now + timedelta(days=diffDayCount)
+
+    update.message.reply_text(
+        "Vale", reply_to_message_id=update.message.message_id)
+    now = now.replace(second=0)
+    saveMessageToRemember(
+        usernameToNotify, msg, now.isoformat())
+    return now
+
+# save message in a json_file
+def saveMessageToRemember(username, msg, when):
+    data = []
+    try:
+        json_file = open('memories.json', 'r')
+        data = json.load(json_file)
+        data.append({'username': username, 'msg': msg, 'when': when})
+    except IOError:
+        data = [{'username': username, 'msg': msg, 'when': when}]
+
+    with open('memories.json', 'w') as outfile:
+        json.dump(data, outfile)
+
+# load memories to execute the jobs
+def loadMemories():
+    try:
+        json_file = open('memories.json', 'r')
+        data = json.load(json_file)
+    except IOError:
+        data = {}
+    data = json.dumps(
+        {'data': data})
+    data = json.loads(data)
+    return data["data"]
+
+# get the first memory
+def gimmeMyMemories():
+    data = loadMemories()
+    data = sorted(
+        data,
+        key=lambda x: datetime.strptime(x['when'], '%Y-%m-%dT%H:%M:%S.%f'), reverse=True
+    )
+    # msg = data[0]
+    msg = data.pop()
+    with open('memories.json', 'w') as outfile:
+        json.dump(data, outfile)
+    return msg
+
+
+def callback_remember(bot, job):
+    msg = gimmeMyMemories()
+    bot.send_message(chat_id=job.context, text="EH! " +
+        msg["username"] + " te recuerdo que " + msg["msg"])
+
+# Load dateConfig file and check if some key is in the msg
+def checkTimeToRemember(msg):
+    data = []
+    try:
+        json_file = open('dateConfig.json', 'r')
+        data = json.load(json_file)
+    except IOError:
+        return None
+    index = 0
+    while index < len(data):
+        if data[index]["name"] in msg:
+            return data[index]
+        index += 1
+    return None
 
 
 def isNowJob(bot, job):
@@ -472,166 +352,6 @@ def isNowJob(bot, job):
         indexValueForJob = 0
 
 
-def gimmeTags(video, videoTags, maxTags):
-    tagsIndex = 0
-    if video['snippet'].get('tags') != None:
-        while tagsIndex < len(video['snippet']['tags']) and tagsIndex < maxTags:
-            videoTags += video['snippet']['tags'][tagsIndex] + " "
-            tagsIndex += 1
-    return videoTags
-
-
-def saveDataSong(update):
-    data = []
-    try:
-        json_file = open('data.txt', 'r')
-        data = json.load(json_file)
-    except IOError:
-        data = []
-
-    data.append(update.message.text)
-    with open('data.txt', 'w') as outfile:
-        json.dump(data, outfile)
-
-    update.message.reply_text(
-        "No conseguimos encontrar la canción en Spotify :( sorry :( la añadiremos a mano...", reply_to_message_id=update.message.message_id)
-
-
-def callSpotifyApi(videoTitle, videoTags, video, sp, update):
-    try:
-        results = sp.search(q=videoTitle, limit=1)
-        if results['tracks']['total'] == 0:
-            results = sp.search(q=videoTags, limit=1)
-        if results['tracks']['total'] == 0:
-            videoTags = ""
-            videoTags = gimmeTags(video, videoTags, 2)
-            results = sp.search(q=videoTags, limit=1)
-        if results['tracks']['total'] == 0:
-            videoTags = ""
-            videoTags = gimmeTags(video, videoTags, 1)
-            results = sp.search(q=videoTags, limit=1)
-        return results
-    except:
-        saveDataSong(update)
-
-
-def addToSpotifyPlaylist(results, update):
-    resultTracksList = results['tracks']
-    idsToAdd = []
-
-    for j in range(len(results['tracks']['items'])):
-        idsToAdd.insert(0, results['tracks']['items'][j]['id'])
-
-    callSpotifyApiToAddSong(idsToAdd)
-
-
-def callSpotifyApiToAddSong(idsToAdd):
-    scope = 'playlist-modify playlist-modify-public user-library-read playlist-modify-private'
-    token = util.prompt_for_user_token(settings["spotify"]["spotifyuser"], scope, client_id=settings["spotify"]
-                                       ["spotifyclientid"], client_secret=settings["spotify"]["spotifysecret"], redirect_uri='http://localhost:8000')
-    sp = spotipy.Spotify(auth=token)
-    results = sp.user_playlist_add_tracks(
-        settings["spotify"]["spotifyuser"], settings["spotify"]["spotifyplaylist"], idsToAdd)
-
-
-def gimmeTheSpotifyPlaylistLink(bot, update):
-    update.message.reply_text(
-        'ahí te va! ' + settings["spotify"]["spotifyplaylistlink"])
-
-
-def replaceYouTubeVideoName(videoTitle):
-    videoTitle = re.sub(r'\([\[a-zA-Z :\'0-9\]]+\)', '', videoTitle)
-    videoTitle = re.sub(r'\[[\[a-zA-Z :\'0-9\]]+\]', '', videoTitle)
-    videoTitle = videoTitle.lower().replace("official video", "")
-    videoTitle = videoTitle.lower().replace("official music video", "")
-    videoTitle = videoTitle.lower().replace("videoclip", "")
-    videoTitle = videoTitle.lower().replace("video clip", "")
-    videoTitle = videoTitle.lower().replace("oficial", "")
-    return videoTitle
-
-
-def censorYoutubeVideo(videoTitle):
-    json_file = open(os.path.join(os.path.dirname(
-        __file__), "youtubeCensor.json"), 'r')
-    youtubeCensorData = json.load(json_file)
-
-    for item in youtubeCensorData:
-        if item in videoTitle:
-            return True
-    return None
-
-
-def connectToSpotifyAndCheckAPI(update, videoTitle, videoTags, video):
-    client_credentials_manager = SpotifyClientCredentials(
-        client_id=settings["spotify"]["spotifyclientid"], client_secret=settings["spotify"]["spotifysecret"])
-    sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
-    sp.trace = False
-    results = callSpotifyApi(videoTitle, videoTags, video, sp, update)
-
-    if results == None or (results['tracks']['total'] != None and results['tracks']['total'] == 0):
-        saveDataSong(update, None)
-        return False
-    else:
-        addToSpotifyPlaylist(results, update)
-        return True
-
-
-def youtubeLink(bot, update):
-    try:
-        videoid = ""
-        if 'youtu.be' not in update.message.text.lower():
-            videoid = update.message.text.split('v=')
-            videoid = videoid[1].split(' ')[0]
-            videoid = videoid.split('&')[0]
-        else:
-            videoid = update.message.text.split('youtu.be/')
-            videoid = videoid[1].split(' ')[0]
-            videoid = videoid.split('&')[0]
-        youtube = YoutubeAPI(
-            {'key': settings["main"]["youtubeapikey"]})
-        video = youtube.get_video_info(videoid)
-        videoTitle = video['snippet']['title'].lower()
-        videoTitle = replaceYouTubeVideoName(videoTitle)
-
-        if censorYoutubeVideo(videoTitle):
-            update.message.reply_text(
-                '...', reply_to_message_id=update.message.message_id)
-        else:
-            videoTags = ""
-            tagsIndex = 0
-            videoTags = gimmeTags(video, videoTags, 3)
-            if videoTitle != None and videoTags != None:
-                return connectToSpotifyAndCheckAPI(
-                    update, videoTitle, videoTags, video)
-            else:
-                saveDataSong(update, None)
-    except:
-        saveDataSong(update, None)
-    return False
-
-
-def spotifyLink(bot, update):
-    try:
-        trackid = update.message.text.split("track/")
-        trackid = trackid[1].split(" ")
-        if "?" in trackid:
-            trackid = trackid[1].split("?")
-        trackid = trackid[0]
-        callSpotifyApiToAddSong([trackid])
-        return True
-    except:
-        saveDataSong(update, None)
-    return False
-
-
-def checkYoutubeSpotifyLinks(bot, update):
-    for i in range(len(update.message.entities)):
-        if update.message.entities[i].type == 'url' and ('youtu.be' in update.message.text.lower() or 'youtube.com' in update.message.text.lower()):
-            return youtubeLink(bot, update)
-        elif update.message.entities[i].type == 'url' and 'spotify.com' in update.message.text:
-            return spotifyLink(bot, update)
-
-
 def addDataToJson(text):
     msg = replaceStr(text, "cookie añade")
     msgSplitted = msg.split(" ")
@@ -645,7 +365,10 @@ def addDataToJson(text):
         json.dump(dataCookie, outfile)
 
 
-@run_async
+def gimmeTheSpotifyPlaylistLink(bot, update):
+    update.message.reply_text(
+        'ahí te va! ' + settings["spotify"]["spotifyplaylistlink"])
+
 def echo(bot, update):
     global canTalk
     global firstMsg
@@ -657,8 +380,9 @@ def echo(bot, update):
         elif update.message.text != None and "cookie sigue" == update.message.text.lower():
             restart(bot, update)
 
+        spotifyAPI = SpotifyYouTubeClass(settings)
         wasAdded = False
-        wasAdded = checkYoutubeSpotifyLinks(bot, update)
+        wasAdded = spotifyAPI.checkYoutubeSpotifyLinks(update)
 
         if firstMsg:
             startJobs(bot, update)
@@ -676,25 +400,30 @@ def echo(bot, update):
                         update.message.entities[i]["offset"]) + int(update.message.entities[i]["length"]))]
                     msg = msg.replace(url.lower(), url)
             rememberJobs(bot, update, msg)
+        elif "cookie dame la lista" in update.message.text.lower():
+            gimmeTheSpotifyPlaylistLink(bot, update)
         elif "cookie mete" in update.message.text.lower():
             hasUrl = False
             videoTitle = update.message.text.lower().replace("cookie mete ", "")
+            # check if there is an url in the msg
             for i in range(len(update.message.entities)):
                 if update.message.entities[i].type == 'url':
                     hasUrl = True
 
             if hasUrl == False:
-                if censorYoutubeVideo(videoTitle):
+                if spotifyAPI.censorYoutubeVideo(videoTitle):
                     update.message.reply_text(
                         'No. :)', reply_to_message_id=update.message.message_id)
                 else:
-                    connectToSpotifyAndCheckAPI(
+                    # check if msg is like <song> <band> // numb linkin park to search in spotify api
+                    spotifyAPI.connectToSpotifyAndCheckAPI(
                         update, videoTitle, [], None)
             else:
-                checkYoutubeSpotifyLinks(bot, update)
+                spotifyAPI.checkYoutubeSpotifyLinks(update)
+        elif "cookie recomienda" in update.message.text.lower():
+            #send a random song of the spotify playlist
+            CheckAndSendDataClass().sendMsg(update, spotifyAPI.recommendAGroup(update), True)
 
-        if "cookie añade" in update.message.text.lower():
-            addDataToJson(update.message.text.lower())
         elif canTalk:
 
             # voice
@@ -719,47 +448,10 @@ def echo(bot, update):
                     update.message.reply_text(
                         random4GodMsg[indexMsg], reply_to_message_id=update.message.message_id)
 
-            foundKey = False
-            indexArray = 0
-            dictionaryIndex = 0
-            now = datetime.now()
-            while dictionaryIndex < len(dataCookie["keywords"]) and foundKey is not True:
-                if len(dataCookie["keywords"][dictionaryIndex]["regexpValue"]) > 0:
-                    while indexArray < len(dataCookie["keywords"][dictionaryIndex]["regexpValue"]) and foundKey is not True:
-                        regexr = re.compile(
-                            dataCookie["keywords"][dictionaryIndex]["regexpValue"][indexArray])
-                        if regexr.search(update.message.text.lower()):
-                            if checkIfSendData(bot, update, dataCookie["keywords"][dictionaryIndex]):
-                                dataCookie["keywords"][dictionaryIndex]["lastTimeSentIt"] = addTime(
-                                    now, dataCookie["keywords"][dictionaryIndex])
-                            foundKey = True
-                        indexArray += 1
-                indexArray = 0
-                if len(dataCookie["keywords"][dictionaryIndex]["msgToCheck"]) > 0:
-                    while indexArray < len(dataCookie["keywords"][dictionaryIndex]["msgToCheck"]) and foundKey is not True:
-                        if dataCookie["keywords"][dictionaryIndex]["msgToCheck"][indexArray]["type"] == "in":
-                            if dataCookie["keywords"][dictionaryIndex]["msgToCheck"][indexArray]["text"] in update.message.text.lower():
-                                if checkIfSendData(bot, update, dataCookie["keywords"][dictionaryIndex]):
-                                    dataCookie["keywords"][dictionaryIndex]["lastTimeSentIt"] = addTime(
-                                        now, dataCookie["keywords"][dictionaryIndex])
-                                foundKey = True
-                        elif dataCookie["keywords"][dictionaryIndex]["msgToCheck"][indexArray]["text"] == update.message.text:
-                            if checkIfSendData(bot, update, dataCookie["keywords"][dictionaryIndex]):
-                                dataCookie["keywords"][dictionaryIndex]["lastTimeSentIt"] = addTime(
-                                    now, dataCookie["keywords"][dictionaryIndex])
-                            foundKey = True
-                        indexArray += 1
-                dictionaryIndex += 1
+            CheckAndSendDataClass().checkIfIsInDictionary(bot, update, dataCookie)
 
-            if foundKey is not True:
-                if "random" in update.message.text.lower():
-                    indexRandom = getRandomByValue(len(dataCookie["keywords"]) - 1)
-                    sendData(bot, update, dataCookie["keywords"][indexRandom])
-                    if dataCookie["keywords"][indexRandom]["doubleMsg"] is True:
-                        sendData(bot, update, object["doubleObj"])
-
-                elif len(update.message.text) > 7:  # mimimimimimi
-                    randomResponse(update, bot)
+            if "cookie añade" in update.message.text.lower():
+                addDataToJson(update.message.text.lower())
 
 
 def error(bot, update, error):
@@ -767,15 +459,17 @@ def error(bot, update, error):
 
 
 def callback_andalucia(bot, job):
-    bot.send_message(chat_id=job.context, text="¡Buenoh díah, Andalucía! :D")
+    if str(job.context) == str(settings["main"]["groupid"]):
+        bot.send_message(chat_id=job.context, text="¡Buenoh díah, Andalucía! :D")
 
 
 def callback_bye(bot, job):
-    bot.send_message(chat_id=job.context, text="AIÓ")
-    bot.sendChatAction(chat_id=job.context,
-                       action=telegram.ChatAction.UPLOAD_PHOTO)
-    bot.sendDocument(chat_id=job.context, document=open(
-        dataPath + '/gifs/bye.mp4', 'rb'))
+    if str(job.context) == str(settings["main"]["groupid"]):
+        bot.send_message(chat_id=job.context, text="AIÓ")
+        bot.sendChatAction(chat_id=job.context,
+                           action=telegram.ChatAction.UPLOAD_PHOTO)
+        bot.sendDocument(chat_id=job.context, document=open(
+            dataPath + '/gifs/bye.mp4', 'rb'))
 
 
 def stop(bot, update):
